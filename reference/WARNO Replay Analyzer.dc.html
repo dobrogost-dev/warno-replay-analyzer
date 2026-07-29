@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+  <style>
+    :root { color-scheme: light; --bg:#f4f4f2; --surface:#ffffff; --surface2:#fafaf8; --line:#e3e3df; --line2:#efefec; --line-strong:#d8d8d2; --ink:#1d2025; --sub:#565b63; --faint:#878d96; --faint2:#a7abb2; --accent:#3760a9; --accent-strong:#274a87; --accent-bg:#eef2f9; --accent-bg-hover:#e2eaf7; --accent-line:#c6d3ea; --row-hover:#f6f8fb; --chip-bg:#f0f0ee; --win:#2e8560; --win-bg:#e3f1e9; --win-line:#bcdcc9; --loss:#b4443a; --loss-bg:#f7e9e7; --loss-line:#e3c9c4; --amber:#8a6d1f; --amber-bg:#f6ecd4; --amber-line:#e5d5a8; --vet:#b78a2e; --vet1:#8a6d1f; --vet2:#7a5a16; --vet3:#5f4310; --pact:#b3473e; --selection:#d7e2f4; }
+    html[data-theme="dark"] { color-scheme: dark; --bg:#16181c; --surface:#1e2126; --surface2:#22252b; --line:#2e323a; --line2:#292d34; --line-strong:#3a3f49; --ink:#e6e8ec; --sub:#a9aeb9; --faint:#7e8492; --faint2:#646a77; --accent:#7da2d9; --accent-strong:#a5c2ea; --accent-bg:#253242; --accent-bg-hover:#2c3c52; --accent-line:#3a4d6b; --row-hover:#22272e; --chip-bg:#2a2e35; --win:#57b287; --win-bg:#1e3228; --win-line:#2f4a3b; --loss:#d97b6f; --loss-bg:#372423; --loss-line:#543230; --amber:#d3ac52; --amber-bg:#343020; --amber-line:#554a2b; --vet:#d3ac52; --vet1:#9c7a34; --vet2:#c9a24e; --vet3:#f0cf86; --pact:#d0716a; --selection:#2c3c52; }
+    body { margin: 0; background: var(--bg); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--accent-strong); text-decoration: underline; }
+    ::selection { background: var(--selection); }
+    input, select, button { font-family: inherit; }
+    @keyframes pulse { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
+  </style>
+</helmet>
+<div style="font-family:'IBM Plex Sans',sans-serif; color:var(--ink); min-height:100vh; background:var(--bg); font-size:14px;">
+  <div style="background:var(--surface); border-bottom:1px solid var(--line);">
+    <div style="max-width:1480px; margin:0 auto; padding:14px 24px; display:flex; align-items:baseline; gap:14px;">
+      <div style="font-size:17px; font-weight:700; letter-spacing:-0.01em;">WARNO Replay Analyzer</div>
+      <div style="font-size:12px; color:var(--faint); font-family:'IBM Plex Mono',monospace; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ sourceLabel }}</div>
+      <sc-if value="{{ isSample }}" hint-placeholder-val="{{ false }}">
+        <div style="font-size:10px; font-weight:600; letter-spacing:.08em; color:var(--amber); background:var(--amber-bg); border:1px solid var(--amber-line); border-radius:3px; padding:3px 7px;">SAMPLE DATA</div>
+      </sc-if>
+      <div onClick="{{ onTheme }}" style="font-size:11.5px; font-weight:600; color:var(--sub); border:1px solid var(--line-strong); background:var(--surface); border-radius:4px; padding:3px 10px; cursor:pointer; white-space:nowrap;" style-hover="border-color:var(--accent); color:var(--accent);">{{ themeLabel }}</div>
+      <div style="font-size:12px; color:var(--sub);">{{ datasetLabel }}</div>
+    </div>
+  </div>
+
+  <div style="background:var(--surface); border-bottom:1px solid var(--line);">
+    <div style="max-width:1480px; margin:0 auto; padding:0 24px; display:flex; gap:2px;">
+      <sc-for list="{{ tabs }}" as="tb" hint-placeholder-count="1">
+        <div onClick="{{ tb.onClick }}" style="{{ tb.style }}" style-hover="color:var(--ink);">
+          <span>{{ tb.label }}</span>
+          <sc-if value="{{ tb.closable }}" hint-placeholder-val="{{ false }}">
+            <span onClick="{{ tb.onClose }}" style="margin-left:8px; color:var(--faint2); font-size:13px; padding:0 3px; border-radius:3px;" style-hover="background:var(--chip-bg); color:var(--ink);">×</span>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ true }}">
+    <div style="max-width:1480px; margin:0 auto; padding:80px 24px; text-align:center; color:var(--faint);">
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:13px; animation:pulse 1.2s infinite;">Loading data.json…</div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:720px; margin:48px auto; background:var(--surface); border:1px solid var(--loss-line); border-radius:6px; padding:24px;">
+      <div style="font-weight:600; color:var(--loss); margin-bottom:8px;">Could not load data.json</div>
+      <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--sub); margin-bottom:14px;">{{ errorMsg }}</div>
+      <div style="font-size:13px; color:var(--sub); line-height:1.6;">
+        1. Run <span style="font-family:'IBM Plex Mono',monospace; background:var(--bg); padding:1px 5px; border-radius:3px;">python analyze_replays.py &lt;replay folder&gt;</span> to generate data.json next to this page.<br>
+        2. Serve the folder over HTTP (fetch does not work from file://): <span style="font-family:'IBM Plex Mono',monospace; background:var(--bg); padding:1px 5px; border-radius:3px;">python -m http.server</span> then open localhost:8000.
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isMatches }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:1480px; margin:0 auto; padding:18px 24px; display:grid; grid-template-columns:264px 1fr; gap:18px; align-items:start;">
+
+      <div style="background:var(--surface); border:1px solid var(--line); border-radius:6px; position:sticky; top:14px; display:flex; flex-direction:column; overflow:hidden;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:11px 14px;">
+          <div style="font-size:10px; font-weight:600; letter-spacing:.1em; color:var(--faint);">FILTERS</div>
+          <div onClick="{{ onReset }}" style="font-size:11px; color:var(--accent); cursor:pointer;" style-hover="text-decoration:underline;">Reset all</div>
+        </div>
+
+        <div style="padding:11px 14px; border-top:1px solid var(--line2);">
+          <div style="font-size:11px; font-weight:600; color:var(--sub); margin-bottom:5px;">Player search</div>
+          <input value="{{ fQ }}" onChange="{{ onQ }}" placeholder="Contains… (nick or Eugen ID)" style="width:100%; box-sizing:border-box; border:1px solid var(--line-strong); border-radius:4px; padding:6px 8px; font-size:13px; outline:none; background:var(--surface);" style-focus="border-color:var(--accent);">
+          <select value="{{ fPlayerId }}" onChange="{{ onPlayerPick }}" style="width:100%; margin-top:5px; border:1px solid var(--line-strong); border-radius:4px; padding:5px 6px; font-size:12.5px; background:var(--surface); color:var(--ink); outline:none;">
+            <option value="">Or pick from list (by games)…</option>
+            <sc-for list="{{ playerOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+          </select>
+          <sc-if value="{{ hasReportTarget }}" hint-placeholder-val="{{ false }}">
+            <div onClick="{{ onReportTarget }}" style="display:flex; align-items:center; gap:6px; margin-top:5px; font-size:11.5px; font-weight:600; color:var(--accent); border:1px solid var(--accent-line); background:var(--accent-bg); border-radius:4px; padding:5px 9px; cursor:pointer;" style-hover="background:var(--accent-bg-hover);">
+              <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ reportTargetLabel }}</span>
+              <span style="color:var(--faint); font-size:12px;">→</span>
+            </div>
+          </sc-if>
+          <div style="font-size:10.5px; color:var(--faint2); margin-top:4px;">{{ playerHint }}</div>
+        </div>
+
+        <div style="padding:11px 14px; border-top:1px solid var(--line2);">
+          <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:5px;">
+            <div style="font-size:11px; font-weight:600; color:var(--sub);">Players by side</div>
+            <div style="font-size:10px; color:var(--faint2);">sides interchangeable</div>
+          </div>
+          <sc-for list="{{ playerSides }}" as="sd" hint-placeholder-count="2">
+            <div style="margin-bottom:7px;">
+              <div style="font-size:10px; font-weight:700; letter-spacing:.08em; color:var(--faint); margin-bottom:4px;">{{ sd.label }}</div>
+              <sc-if value="{{ sd.hasChips }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:5px;">
+                  <sc-for list="{{ sd.chips }}" as="ch" hint-placeholder-count="1">
+                    <div onClick="{{ ch.onRemove }}" style="display:flex; align-items:center; gap:5px; font-size:11px; color:var(--accent); background:var(--accent-bg); border:1px solid var(--accent-line); border-radius:3px; padding:2px 5px 2px 6px; cursor:pointer;" style-hover="border-color:var(--accent);">
+                      <span>{{ ch.name }}</span>
+                      <span style="color:var(--faint); font-size:12px; line-height:1;">×</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <select value="" onChange="{{ sd.onAdd }}" style="width:100%; border:1px solid var(--line-strong); border-radius:4px; padding:5px 6px; font-size:12.5px; background:var(--surface); color:var(--ink); outline:none;">
+                <option value="">{{ sd.placeholder }}</option>
+                <sc-for list="{{ playerOpts }}" as="o" hint-placeholder-count="5"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+              </select>
+            </div>
+          </sc-for>
+          <div style="font-size:10.5px; color:var(--faint2); line-height:1.5;">Leave empty to ignore. Both sides can be filled to pin an exact matchup.</div>
+        </div>
+
+        <div style="padding:11px 14px; border-top:1px solid var(--line2);">
+          <div style="font-size:11px; font-weight:600; color:var(--sub); margin-bottom:6px;">Match type</div>
+          <div style="display:flex; flex-direction:column; gap:5px;">
+            <sc-for list="{{ typeOpts }}" as="o" hint-placeholder-count="3">
+              <label style="display:flex; align-items:center; gap:7px; font-size:13px; cursor:pointer;">
+                <input type="checkbox" checked="{{ o.checked }}" onChange="{{ o.onToggle }}" style="margin:0; accent-color:var(--accent);">
+                <span style="flex:1;">{{ o.label }}</span>
+                <span style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--faint2);">{{ o.count }}</span>
+              </label>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="padding:11px 14px; border-top:1px solid var(--line2);">
+          <div style="font-size:11px; font-weight:600; color:var(--sub); margin-bottom:6px;">My result</div>
+          <div style="display:flex; flex-direction:column; gap:5px;">
+            <sc-for list="{{ resultOpts }}" as="o" hint-placeholder-count="4">
+              <label style="display:flex; align-items:center; gap:7px; font-size:13px; cursor:pointer;">
+                <input type="checkbox" checked="{{ o.checked }}" onChange="{{ o.onToggle }}" style="margin:0; accent-color:var(--accent);">
+                <span>{{ o.label }}</span>
+              </label>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="padding:11px 14px; border-top:1px solid var(--line2);">
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <div style="font-size:11px; font-weight:600; color:var(--sub);">Min duration</div>
+            <div style="font-size:11px; font-family:'IBM Plex Mono',monospace; color:var(--accent);">{{ minDurLabel }}</div>
+          </div>
+          <input type="range" min="0" max="40" step="1" value="{{ fMinDur }}" onChange="{{ onMinDur }}" style="width:100%; accent-color:var(--accent);">
+          <div style="font-size:10.5px; color:var(--faint2);">Applies to matches with a recorded time</div>
+        </div>
+
+        <div style="padding:11px 14px; border-top:1px solid var(--line2);">
+          <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:5px;">
+            <div style="font-size:11px; font-weight:600; color:var(--sub);">Divisions in match</div>
+            <div style="font-size:10px; color:var(--faint2);">sides interchangeable</div>
+          </div>
+          <sc-for list="{{ divSides }}" as="sd" hint-placeholder-count="2">
+            <div style="margin-bottom:7px;">
+              <div style="font-size:10px; font-weight:700; letter-spacing:.08em; color:var(--faint); margin-bottom:4px;">{{ sd.label }}</div>
+              <sc-if value="{{ sd.hasChips }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:5px;">
+                  <sc-for list="{{ sd.chips }}" as="ch" hint-placeholder-count="1">
+                    <div onClick="{{ ch.onRemove }}" style="display:flex; align-items:center; gap:5px; font-size:11px; color:var(--accent); background:var(--accent-bg); border:1px solid var(--accent-line); border-radius:3px; padding:2px 5px 2px 6px; cursor:pointer;" style-hover="border-color:var(--accent);">
+                      <span style="{{ ch.dot }}"></span>
+                      <span>{{ ch.name }}</span>
+                      <span style="color:var(--faint); font-size:12px; line-height:1;">×</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <select value="" onChange="{{ sd.onAdd }}" style="width:100%; border:1px solid var(--line-strong); border-radius:4px; padding:5px 6px; font-size:12.5px; background:var(--surface); color:var(--ink); outline:none;">
+                <option value="">{{ sd.placeholder }}</option>
+                <optgroup label="NATO">
+                  <sc-for list="{{ natoDivOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+                </optgroup>
+                <optgroup label="PACT">
+                  <sc-for list="{{ pactDivOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+                </optgroup>
+                <optgroup label="Unknown alliance">
+                  <sc-for list="{{ otherDivOpts }}" as="o" hint-placeholder-count="0"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+                </optgroup>
+              </select>
+            </div>
+          </sc-for>
+          <div style="font-size:10.5px; color:var(--faint2); line-height:1.5;">Team A vs Team B, either way round — all listed divisions must be present on their side.</div>
+        </div>
+
+        <div style="padding:11px 14px; border-top:1px solid var(--line2);">
+          <div style="font-size:11px; font-weight:600; color:var(--sub); margin-bottom:5px;">Map</div>
+          <select value="{{ fMap }}" onChange="{{ onMap }}" style="width:100%; border:1px solid var(--line-strong); border-radius:4px; padding:5px 6px; font-size:12.5px; background:var(--surface); color:var(--ink); outline:none;">
+            <option value="">Any map</option>
+            <sc-for list="{{ mapOpts }}" as="o" hint-placeholder-count="4"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+          </select>
+        </div>
+
+        <div style="padding:11px 14px; border-top:1px solid var(--line2);">
+          <div style="font-size:11px; font-weight:600; color:var(--sub); margin-bottom:6px;">Match size</div>
+          <div style="display:flex; gap:4px;">
+            <sc-for list="{{ sizeOpts }}" as="o" hint-placeholder-count="4">
+              <div onClick="{{ o.onToggle }}" style="{{ o.style }}">{{ o.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="padding:11px 14px; border-top:1px solid var(--line2);">
+          <div style="font-size:11px; font-weight:600; color:var(--sub); margin-bottom:5px;">Date range</div>
+          <div style="display:flex; flex-direction:column; gap:5px;">
+            <input type="date" value="{{ fFrom }}" onChange="{{ onFrom }}" style="border:1px solid var(--line-strong); border-radius:4px; padding:5px 6px; font-size:12px; color:var(--ink); background:var(--surface); outline:none;">
+            <input type="date" value="{{ fTo }}" onChange="{{ onTo }}" style="border:1px solid var(--line-strong); border-radius:4px; padding:5px 6px; font-size:12px; color:var(--ink); background:var(--surface); outline:none;">
+          </div>
+        </div>
+      </div>
+
+      <div style="min-width:0; background:var(--surface); border:1px solid var(--line); border-radius:6px; overflow:hidden;">
+        <div style="padding:14px 18px; display:flex; align-items:center; gap:18px; border-bottom:1px solid var(--line);">
+          <div>
+            <div style="display:flex; align-items:baseline; gap:7px;">
+              <span style="font-size:26px; font-weight:700; font-family:'IBM Plex Mono',monospace; letter-spacing:-0.02em;">{{ baseCount }}</span>
+              <span style="font-size:13px; color:var(--sub);">/ {{ totalCount }} replays qualify</span>
+            </div>
+            <div style="font-size:11.5px; color:var(--faint); margin-top:2px;">{{ baseSub }}</div>
+          </div>
+          <div style="width:1px; align-self:stretch; background:var(--line);"></div>
+          <div style="display:flex; align-items:center; gap:18px;">
+            <div>
+              <div style="font-size:10px; font-weight:600; letter-spacing:.08em; color:var(--faint); margin-bottom:3px;">{{ tallyLabel }}</div>
+              <div style="display:flex; align-items:baseline; gap:5px; font-family:'IBM Plex Mono',monospace; font-size:21px; font-weight:700; letter-spacing:-0.02em;">
+                <span style="color:var(--win);">{{ tallyW }}</span>
+                <span style="color:var(--line-strong); font-size:15px;">–</span>
+                <span style="color:var(--loss);">{{ tallyL }}</span>
+                <span style="color:var(--line-strong); font-size:15px;">–</span>
+                <span style="color:var(--sub);">{{ tallyD }}</span>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:10px; font-weight:600; letter-spacing:.08em; color:var(--faint); margin-bottom:3px;">WINRATE</div>
+              <div style="display:flex; align-items:baseline; gap:6px;">
+                <span style="font-size:21px; font-weight:700; font-family:'IBM Plex Mono',monospace; letter-spacing:-0.02em; color:{{ wrColor }};">{{ wrValue }}</span>
+                <span style="font-size:11px; color:var(--faint2);">{{ wrSub }}</span>
+              </div>
+            </div>
+          </div>
+          <div style="flex:1;"></div>
+
+        </div>
+
+        <sc-if value="{{ isTable }}" hint-placeholder-val="{{ false }}">
+          <div style="overflow-x:auto;">
+            <div style="display:grid; min-width:1010px; grid-template-columns:118px 64px minmax(100px,.9fr) 46px minmax(150px,1.15fr) minmax(150px,1.15fr) 92px 56px 104px; gap:10px; padding:8px 16px; border-bottom:1px solid var(--line); background:var(--surface2); font-size:10px; font-weight:600; letter-spacing:.07em; color:var(--faint);">
+              <sc-for list="{{ cols }}" as="c" hint-placeholder-count="9"><div onClick="{{ c.onClick }}" style="{{ c.style }}" style-hover="color:var(--ink);">{{ c.label }}</div></sc-for>
+            </div>
+            <sc-for list="{{ rows }}" as="r" hint-placeholder-count="9">
+              <div style="border-bottom:1px solid var(--line2);">
+                <div onClick="{{ r.onClick }}" style="display:grid; min-width:1010px; grid-template-columns:118px 64px minmax(100px,.9fr) 46px minmax(150px,1.15fr) minmax(150px,1.15fr) 92px 56px 104px; gap:10px; padding:7px 16px; align-items:center; cursor:pointer; background:{{ r.rowBg }};" style-hover="background:var(--row-hover);">
+                  <div><div style="font-size:12.5px;">{{ r.date }}</div><div style="font-size:10.5px; color:var(--faint2); font-family:'IBM Plex Mono',monospace;">{{ r.time }}</div></div>
+                  <div><span style="{{ r.typeStyle }}">{{ r.typeLabel }}</span></div>
+                  <div style="font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ r.mapName }}</div>
+                  <div style="font-size:11.5px; color:var(--sub); font-family:'IBM Plex Mono',monospace;">{{ r.size }}</div>
+                  <div style="display:flex; align-items:center; gap:6px; overflow:hidden;"><span style="{{ r.myDot }}"></span><span style="font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ r.myDiv }}</span></div>
+                  <div style="display:flex; align-items:center; gap:6px; overflow:hidden;"><span style="{{ r.oppDot }}"></span><span style="font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ r.oppDiv }}</span></div>
+                  <div><span style="{{ r.resultStyle }}">{{ r.resultLabel }}</span><span style="font-size:10.5px; color:var(--faint2); margin-left:5px;">{{ r.resultSub }}</span></div>
+                  <div style="text-align:right; font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--sub);">{{ r.dur }}</div>
+                  <div style="display:flex; align-items:baseline; justify-content:flex-end; gap:4px; font-family:'IBM Plex Mono',monospace; font-size:12px;">
+                    <span style="color:var(--ink);">{{ r.eloOwn }}</span>
+                    <span style="color:var(--faint2); font-size:10px;">{{ r.eloVs }}</span>
+                    <span style="color:var(--sub);">{{ r.eloOpp }}</span>
+                  </div>
+                </div>
+                <sc-if value="{{ r.expanded }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:14px 16px 18px; background:var(--surface2); border-top:1px solid var(--line2);">
+                    <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:12px;">
+                      <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--faint);">{{ r.detail.meta }}</div>
+                      <div style="flex:1;"></div>
+                      <div onClick="{{ r.detail.onAllDecks }}" style="font-size:11.5px; font-weight:600; color:var(--accent); cursor:pointer; border:1px solid var(--accent-line); border-radius:4px; padding:4px 10px; background:var(--surface);" style-hover="background:var(--accent-bg);">{{ r.detail.allDecksLabel }}</div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start;">
+                      <sc-for list="{{ r.detail.teams }}" as="tm" hint-placeholder-count="2">
+                        <div>
+                          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                            <div style="font-size:11px; font-weight:700; letter-spacing:.06em; color:var(--sub);">{{ tm.label }}</div>
+                            <sc-if value="{{ tm.won }}" hint-placeholder-val="{{ false }}"><div style="font-size:10px; font-weight:700; color:var(--win); background:var(--win-bg); border:1px solid var(--win-line); border-radius:3px; padding:1px 6px;">WINNER</div></sc-if>
+                          </div>
+                          <div style="display:flex; flex-direction:column; gap:8px;">
+                            <sc-for list="{{ tm.players }}" as="pl" hint-placeholder-count="1">
+                              <div style="background:var(--surface); border:1px solid var(--line); border-radius:5px; padding:10px 12px;">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                  <div style="font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ pl.name }}</div>
+                                  <sc-if value="{{ pl.isOwner }}" hint-placeholder-val="{{ false }}"><div style="font-size:9.5px; font-weight:700; color:var(--accent); background:var(--accent-bg); border-radius:3px; padding:1px 5px;">YOU</div></sc-if>
+                                  <sc-if value="{{ pl.isAI }}" hint-placeholder-val="{{ false }}"><div style="font-size:9.5px; font-weight:700; color:var(--faint); background:var(--chip-bg); border-radius:3px; padding:1px 5px;">AI</div></sc-if>
+                                  <div style="flex:1;"></div>
+                                  <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--faint);">{{ pl.eloLabel }}</div>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:6px; margin-top:6px;">
+                                  <span style="{{ pl.dot }}"></span>
+                                  <span style="font-size:12.5px; color:var(--sub); flex:1;">{{ pl.divLabel }}</span>
+                                  <div onClick="{{ pl.onToggleDeck }}" style="font-size:11px; font-weight:600; color:var(--accent); cursor:pointer; padding:2px 8px; border-radius:3px; border:1px solid var(--accent-line); background:var(--surface);" style-hover="background:var(--accent-bg);">{{ pl.deckBtn }}</div>
+                                  <sc-if value="{{ pl.canReport }}" hint-placeholder-val="{{ false }}">
+                                    <div onClick="{{ pl.onReport }}" style="font-size:11px; font-weight:600; color:var(--sub); cursor:pointer; padding:2px 8px; border-radius:3px; border:1px solid var(--line-strong); background:var(--surface);" style-hover="border-color:var(--accent); color:var(--accent);">Report</div>
+                                  </sc-if>
+                                </div>
+                                <sc-if value="{{ pl.deckOpen }}" hint-placeholder-val="{{ false }}">
+                                  <div style="margin-top:10px; border-top:1px dashed var(--line); padding-top:10px;">
+                                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:9px; font-size:11px; color:var(--faint);">
+                                      <span style="font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--sub);">{{ pl.cardTotal }}</span>
+                                      <span>cards</span>
+                                      <span style="color:var(--line-strong);">·</span>
+                                      <span>avg vet</span>
+                                      <span style="font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--vet);">{{ pl.avgVet }}</span>
+                                      <span style="color:var(--line-strong);">·</span>
+                                      <span>{{ pl.vetSummary }}</span>
+                                    </div>
+                                    <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px 14px; align-items:start;">
+                                      <sc-for list="{{ pl.groups }}" as="g" hint-placeholder-count="4">
+                                        <div style="display:flex; flex-direction:column; gap:4px;">
+                                          <div style="display:flex; align-items:baseline; gap:6px; margin-bottom:1px;">
+                                            <span style="font-size:9.5px; font-weight:700; letter-spacing:.09em; color:var(--faint2);">{{ g.label }}</span>
+                                            <span style="font-size:9.5px; font-family:'IBM Plex Mono',monospace; color:var(--accent-line);">{{ g.count }}</span>
+                                          </div>
+                                          <sc-for list="{{ g.items }}" as="u" hint-placeholder-count="2">
+                                            <div style="background:var(--surface2); border:1px solid var(--line); border-radius:5px; padding:5px 8px;">
+                                              <div style="display:flex; align-items:center; gap:7px;">
+                                                <span style="font-size:11.5px; flex:1; line-height:1.35;">{{ u.name }}</span>
+                                                <span style="{{ u.countStyle }}">{{ u.count }}</span>
+                                                <span style="font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:.12em; color:{{ u.vetColor }};">{{ u.pips }}</span>
+                                              </div>
+                                              <sc-if value="{{ u.tr }}" hint-placeholder-val="{{ false }}">
+                                                <div style="font-size:10.5px; color:var(--faint2); margin-top:2px;">{{ u.tr }}</div>
+                                              </sc-if>
+                                            </div>
+                                          </sc-for>
+                                        </div>
+                                      </sc-for>
+                                    </div>
+                                    <div style="display:flex; gap:6px; align-items:center; margin-top:9px;">
+                                      <input readOnly value="{{ pl.code }}" style="flex:1; font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--faint); border:1px solid var(--line); border-radius:3px; padding:4px 6px; background:var(--surface2); outline:none; min-width:0;">
+                                      <div onClick="{{ pl.onCopy }}" style="font-size:11px; font-weight:600; color:var(--accent); cursor:pointer; border:1px solid var(--accent-line); border-radius:3px; padding:4px 9px; background:var(--surface); white-space:nowrap;" style-hover="background:var(--accent-bg);">Copy code</div>
+                                    </div>
+                                  </div>
+                                </sc-if>
+                              </div>
+                            </sc-for>
+                          </div>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        
+
+        <div style="display:flex; align-items:center; gap:10px; padding:10px 16px; border-top:1px solid var(--line);">
+          <div style="font-size:12px; color:var(--faint); font-family:'IBM Plex Mono',monospace;">{{ pageLabel }}</div>
+          <div style="flex:1;"></div>
+          <button onClick="{{ onPrevPage }}" disabled="{{ prevDisabled }}" style="{{ prevStyle }}">← Prev</button>
+          <button onClick="{{ onNextPage }}" disabled="{{ nextDisabled }}" style="{{ nextStyle }}">Next →</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isReport }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:1480px; margin:0 auto; padding:20px 24px;">
+      <div style="display:flex; align-items:baseline; gap:12px; margin-bottom:4px;">
+        <div style="font-size:22px; font-weight:700; letter-spacing:-0.01em;">{{ report.name }}</div>
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--faint);">{{ report.idLabel }}</div>
+      </div>
+      <div style="font-size:12.5px; color:var(--sub); margin-bottom:16px;">Based on the current filter base: <span style="font-weight:600; font-family:'IBM Plex Mono',monospace;">{{ report.base }}</span> matches with this player · adjust filters on the Matches tab to change the base</div>
+
+      <div style="display:flex; flex-wrap:wrap; background:var(--surface); border:1px solid var(--line); border-radius:6px 6px 0 0;">
+        <sc-for list="{{ report.stats }}" as="st" hint-placeholder-count="5">
+          <div style="flex:1; min-width:150px; padding:12px 14px; border-left:1px solid var(--line2); margin-left:-1px;">
+            <div style="font-size:10px; font-weight:600; letter-spacing:.08em; color:var(--faint); margin-bottom:5px;">{{ st.label }}</div>
+            <div style="font-size:21px; font-weight:700; font-family:'IBM Plex Mono',monospace; letter-spacing:-0.02em; color:{{ st.color }};">{{ st.value }}</div>
+            <div style="font-size:11px; color:var(--faint2); margin-top:2px;">{{ st.sub }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ report.hasElo }}" hint-placeholder-val="{{ false }}">
+        <div style="background:var(--surface); border:1px solid var(--line); border-top:0; padding:14px 16px;">
+          <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:8px;">
+            <div style="font-size:12px; font-weight:700;">ELO over time</div>
+            <div style="font-size:11px; color:var(--faint2);">{{ report.eloNote }}</div>
+            <div style="flex:1;"></div>
+            <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--sub);">{{ report.eloRange }}</div>
+          </div>
+          <div style="position:relative;">
+            <svg viewBox="0 0 640 170" preserveAspectRatio="none" style="width:100%; height:170px; display:block;">
+              <line x1="0" y1="14" x2="640" y2="14" stroke="var(--line2)" stroke-width="1"></line>
+              <line x1="0" y1="85" x2="640" y2="85" stroke="var(--line2)" stroke-width="1"></line>
+              <line x1="0" y1="156" x2="640" y2="156" stroke="var(--line2)" stroke-width="1"></line>
+              <polyline points="{{ report.eloPoints }}" fill="none" stroke="var(--accent)" stroke-width="1.6" vector-effect="non-scaling-stroke"></polyline>
+            </svg>
+            <div style="position:absolute; top:2px; left:0; font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--faint2);">{{ report.eloMax }}</div>
+            <div style="position:absolute; bottom:2px; left:0; font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--faint2);">{{ report.eloMin }}</div>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--faint2); margin-top:4px;">
+            <span>{{ report.eloStart }}</span><span>{{ report.eloEnd }}</span>
+          </div>
+        </div>
+      </sc-if>
+
+      <div style="display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); align-items:start; background:var(--surface); border:1px solid var(--line); border-top:0; border-radius:0 0 6px 6px;">
+        <sc-for list="{{ report.tables }}" as="tbl" hint-placeholder-count="3">
+          <div style="grid-column:span {{ tbl.span }}; padding:14px 16px; border-left:1px solid var(--line2); margin-left:-1px;">
+            <div style="font-size:12px; font-weight:700; margin-bottom:2px;">{{ tbl.title }}</div>
+            <div style="font-size:11px; color:var(--faint2); margin-bottom:10px;">{{ tbl.sub }}</div>
+            <div style="display:grid; grid-template-columns:minmax(120px,1fr) 44px 56px 46px minmax(60px,90px); gap:8px; font-size:10px; font-weight:600; letter-spacing:.06em; color:var(--faint2); padding-bottom:5px; border-bottom:1px solid var(--line2);">
+              <div>{{ tbl.col }}</div><div style="text-align:right;">GAMES</div><div style="text-align:right;">W–L</div><div style="text-align:right;">WR</div><div></div>
+            </div>
+            <div style="display:flex; flex-direction:column;">
+              <sc-for list="{{ tbl.rows }}" as="rw" hint-placeholder-count="5">
+                <div style="display:grid; grid-template-columns:minmax(120px,1fr) 44px 56px 46px minmax(60px,90px); gap:8px; align-items:center; padding:5px 0; border-bottom:1px solid var(--line2); font-size:12px;">
+                  <div style="display:flex; align-items:center; gap:6px; overflow:hidden;"><span style="{{ rw.dot }}"></span><span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ rw.name }}</span></div>
+                  <div style="text-align:right; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--sub);">{{ rw.games }}</div>
+                  <div style="text-align:right; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--sub);">{{ rw.wl }}</div>
+                  <div style="text-align:right; font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:600; color:{{ rw.wrColor }};">{{ rw.wr }}</div>
+                  <div style="height:6px; background:var(--line2); border-radius:3px; overflow:hidden;"><div style="{{ rw.bar }}"></div></div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed; bottom:20px; right:20px; background:var(--ink); color:var(--surface); font-size:12.5px; padding:9px 14px; border-radius:5px; box-shadow:0 4px 14px rgba(0,0,0,.18);">{{ toast }}</div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;defaultTheme&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;light&quot;, &quot;dark&quot;], &quot;default&quot;: &quot;dark&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Appearance&quot;}, &quot;pageSize&quot;: {&quot;editor&quot;: &quot;int&quot;, &quot;default&quot;: 50, &quot;min&quot;: 20, &quot;max&quot;: 200, &quot;tsType&quot;: &quot;number&quot;, &quot;section&quot;: &quot;List&quot;}, &quot;eloChartScope&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;ranked&quot;, &quot;all&quot;], &quot;default&quot;: &quot;ranked&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Report&quot;}}">
+class Component extends DCLogic {
+  state = {
+    data: null, error: null, sort: { key: 'date', dir: -1 }, page: 0, expanded: null,
+    openDecks: {}, tabs: [], active: 'matches', toast: null,
+    // _cached/_tally/_reportCache: derived-data caches, invalidated when filters, sort or data change
+    f: { q: '', types: { ranked: true, casual: true, vs_ai: true }, results: { win: true, loss: true, draw: true, aborted: true }, minDur: 10, divA: [], divB: [], plA: [], plB: [], map: '', from: '', to: '', sizes: { 1: true, 2: true, 3: true, 4: true } }
+  };
+
+  applyTheme(th) {
+    document.documentElement.setAttribute('data-theme', th);
+    try { localStorage.setItem('warno-analyzer-theme', th); } catch (e) {}
+    this.setState({ theme: th });
+  }
+
+  componentDidMount() {
+    let stored = null;
+    try { stored = localStorage.getItem('warno-analyzer-theme'); } catch (e) {}
+    const th = stored || this.props.defaultTheme || 'dark';
+    document.documentElement.setAttribute('data-theme', th);
+    this.state.theme = th;
+    this.forceUpdate();
+    fetch('data.json')
+      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(d => { this.owner = this.findOwner(d); this._reportCache = {}; this.setState({ data: d }); })
+      .catch(e => this.setState({ error: e.message || String(e) }));
+  }
+
+  findOwner(d) {
+    const c = {};
+    for (const m of d.matches) for (const p of m.players) if (!p.ai) c[p.userId] = (c[p.userId] || 0) + 1;
+    let best = null, bn = -1;
+    for (const id in c) if (c[id] > bn) { bn = c[id]; best = id; }
+    let name = '?';
+    for (const m of d.matches) { const p = m.players.find(p => p.userId === best); if (p) { name = p.name; break; } }
+    return { id: best, name };
+  }
+
+  div(id) { const d = this.state.data && this.state.data.divisions[String(id)]; return { name: (d && d.name) || ('Division #' + id), alliance: d && d.alliance }; }
+  unit(id) { const u = this.state.data && this.state.data.units[String(id)]; return { name: (u && u.name) || ('#' + id), cat: (u && u.category) || 'other' }; }
+  dot(alliance) {
+    const c = alliance === 'NATO' ? 'var(--accent)' : alliance === 'PACT' ? 'var(--pact)' : 'var(--faint2)';
+    return 'display:inline-block; width:7px; height:7px; border-radius:2px; background:' + c + '; flex:none;';
+  }
+  outcome(m, p) {
+    if (!m.result.present) return 'aborted';
+    if (m.result.winnerAlliance === 'draw') return 'draw';
+    if (!p) return 'loss';
+    return p.alliance === m.result.winnerAlliance ? 'win' : 'loss';
+  }
+  fmtDur(s) { if (s == null) return '—'; return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+  fmtDate(iso) { const M = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; const d = new Date(iso); return d.getUTCDate() + ' ' + M[d.getUTCMonth()] + ' ' + d.getUTCFullYear(); }
+  fmtTime(iso) { const d = new Date(iso); return String(d.getUTCHours()).padStart(2, '0') + ':' + String(d.getUTCMinutes()).padStart(2, '0'); }
+  setF(patch) { this.setState(s => ({ f: Object.assign({}, s.f, patch), page: 0 })); }
+  showToast(msg) { clearTimeout(this._tt); this.setState({ toast: msg }); this._tt = setTimeout(() => this.setState({ toast: null }), 1800); }
+
+  sortVal(m, key) {
+    const me = m.players.find(p => p.userId === this.owner.id);
+    switch (key) {
+      case 'date': return m.date;
+      case 'type': return m.type;
+      case 'map': return m.map.name;
+      case 'size': return m.config.nbMaxPlayer || 2;
+      case 'myDiv': return me && me.deck ? this.div(me.deck.divisionId).name : '';
+      case 'oppDiv': { const o = me ? m.players.find(p => p.alliance !== me.alliance && p.deck) : null; return o ? this.div(o.deck.divisionId).name : ''; }
+      case 'result': { const R = { win: 3, draw: 2, loss: 1, aborted: 0 }; return R[this.outcome(m, me)]; }
+      case 'dur': return m.result.duration == null ? -1 : m.result.duration;
+      case 'elo': return me && me.elo != null ? me.elo : -1;
+    }
+    return 0;
+  }
+
+  sidesMatch(m, listA, listB, keyOf) {
+    if (!listA.length && !listB.length) return true;
+    const sides = {};
+    for (const p of m.players) { const k = keyOf(p); if (k != null) (sides[p.alliance] = sides[p.alliance] || new Set()).add(k); }
+    const keys = Object.keys(sides);
+    const has = (side, list) => list.every(v => side && side.has(v));
+    if (!listA.length || !listB.length) {
+      const list = listA.length ? listA : listB;
+      return keys.some(k => has(sides[k], list));
+    }
+    for (const k1 of keys) for (const k2 of keys) {
+      if (k1 !== k2 && has(sides[k1], listA) && has(sides[k2], listB)) return true;
+    }
+    return false;
+  }
+
+  passes(m, f) {
+    if (!f.types[m.type]) return false;
+    const size = Math.min(4, Math.max(1, Math.round((m.config.nbMaxPlayer || 2) / 2)));
+    if (!f.sizes[size]) return false;
+    const me = m.players.find(p => p.userId === this.owner.id);
+    if (!f.results[this.outcome(m, me)]) return false;
+    if (f.minDur > 0 && m.result.duration != null && m.result.duration < f.minDur * 60) return false;
+    if (f.q) { const q = f.q.toLowerCase(); if (!m.players.some(p => p.name.toLowerCase().includes(q) || p.userId === f.q)) return false; }
+    if (!this.sidesMatch(m, f.divA, f.divB, p => p.deck && p.deck.divisionId != null ? String(p.deck.divisionId) : null)) return false;
+    if (!this.sidesMatch(m, f.plA, f.plB, p => p.userId)) return false;
+    if (f.map && m.map.name !== f.map) return false;
+    const d = m.date.slice(0, 10);
+    if (f.from && d < f.from) return false;
+    if (f.to && d > f.to) return false;
+    return true;
+  }
+
+  deckGroups(deck) {
+    if (!deck || deck.error || !deck.cards) return [];
+    const ORDER = ['log', 'inf', 'art', 'tank', 'rec', 'aa', 'hel', 'air', 'tr', 'other'];
+    const LBL = { log: 'LOGISTICS', inf: 'INFANTRY', art: 'ARTILLERY', tank: 'TANKS', rec: 'RECON', aa: 'ANTI-AIR', hel: 'HELICOPTERS', air: 'AIRCRAFT', tr: 'TRANSPORTS', other: 'OTHER' };
+    const VETC = ['var(--faint2)', 'var(--vet1)', 'var(--vet2)', 'var(--vet3)'];
+    const byCat = {};
+    for (const c of deck.cards) {
+      const u = this.unit(c[1]); const key = c[1] + '|' + c[0] + '|' + c[2];
+      const g = byCat[u.cat] = byCat[u.cat] || { n: 0, items: {} };
+      g.n++;
+      if (!g.items[key]) g.items[key] = { name: u.name, xp: c[0], tr: c[2] ? this.unit(c[2]).name : null, n: 0 };
+      g.items[key].n++;
+    }
+    return ORDER.filter(c => byCat[c]).map(c => ({
+      label: LBL[c],
+      count: String(byCat[c].n),
+      items: Object.values(byCat[c].items).sort((a, b) => b.xp - a.xp || a.name.localeCompare(b.name)).map(it => ({
+        name: it.name,
+        count: it.n > 1 ? '×' + it.n : '',
+        countStyle: it.n > 1
+          ? "font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:600; color:var(--accent); background:var(--accent-bg); border:1px solid var(--accent-line); border-radius:3px; padding:0 4px;"
+          : 'display:none;',
+        pips: it.xp > 0 ? '▲'.repeat(it.xp) : '—',
+        vetColor: VETC[it.xp] || VETC[0],
+        tr: it.tr ? '▸ ' + it.tr : ''
+      }))
+    }));
+  }
+
+  deckSummary(deck) {
+    if (!deck || deck.error || !deck.cards || !deck.cards.length) return { cardTotal: '—', avgVet: '—', vetSummary: '' };
+    const cards = deck.cards, n = cards.length;
+    const c = [0, 0, 0, 0];
+    for (const cd of cards) c[Math.min(3, cd[0])]++;
+    const parts = [];
+    if (c[3]) parts.push(c[3] + ' elite');
+    if (c[2]) parts.push(c[2] + ' vet');
+    if (c[1]) parts.push(c[1] + ' hardened');
+    if (c[0]) parts.push(c[0] + ' trained');
+    return {
+      cardTotal: String(n),
+      avgVet: (cards.reduce((a, cd) => a + Math.min(3, cd[0]), 0) / n).toFixed(2),
+      vetSummary: parts.join(' · ')
+    };
+  }
+
+  buildDetail(m) {
+    const VIC = { 0: 'Total defeat', 1: 'Major defeat', 2: 'Minor defeat', 3: 'Draw', 4: 'Minor victory', 5: 'Major victory', 6: 'Total victory' };
+    const vic = m.result.present ? (VIC[m.result.victoryRaw] || '?') : 'Aborted (no result block)';
+    const meta = m.file + ' · v' + m.version + ' · ' + (m.map.mode || '?') + ' · income ' + (m.config.incomeRate || '?') + ' · ' + (m.config.initMoney || '?') + ' pts start · score cap ' + (m.config.scoreLimit || '?') + ' · ' + vic + (m.mods ? ' · MODS: ' + m.mods : '');
+    const alliances = [...new Set(m.players.map(p => p.alliance))].sort();
+    const me = m.players.find(p => p.userId === this.owner.id);
+    if (me) alliances.sort((a, b) => (a === me.alliance ? -1 : 0) - (b === me.alliance ? -1 : 0));
+    const keys = m.players.map((p, i) => m.id + ':' + i);
+    const allOpen = keys.every(k => this.state.openDecks[k]);
+    const teams = alliances.map(al => ({
+      label: 'TEAM ' + (al + 1) + (me && al === me.alliance ? ' — YOUR SIDE' : ''),
+      won: m.result.present && m.result.winnerAlliance === al,
+      players: m.players.map((p, i) => ({ p, i })).filter(x => x.p.alliance === al).map(x => {
+        const p = x.p, key = m.id + ':' + x.i;
+        const open = !!this.state.openDecks[key];
+        const dv = p.deck ? this.div(p.deck.divisionId) : { name: 'No deck', alliance: null };
+        const sum = open ? this.deckSummary(p.deck) : { cardTotal: '', avgVet: '', vetSummary: '' };
+        return {
+          cardTotal: sum.cardTotal, avgVet: sum.avgVet, vetSummary: sum.vetSummary,
+          name: p.name, isOwner: p.userId === this.owner.id, isAI: !!p.ai,
+          eloLabel: (p.elo != null ? Math.round(p.elo) + ' ELO' : 'no ELO') + (p.level != null ? ' · lvl ' + p.level : ''),
+          dot: this.dot(dv.alliance), divLabel: dv.name + (p.deck && p.deck.modded ? ' · modded' : ''),
+          deckOpen: open, deckBtn: open ? 'Hide deck' : 'Deck ▾',
+          onToggleDeck: () => this.setState(s => ({ openDecks: Object.assign({}, s.openDecks, { [key]: !s.openDecks[key] }) })),
+          canReport: !p.ai, onReport: () => this.openReport(p.userId, p.name),
+          groups: open ? this.deckGroups(p.deck) : [],
+          code: p.deck ? p.deck.code : '',
+          onCopy: () => { const c = p.deck ? p.deck.code : ''; if (navigator.clipboard) navigator.clipboard.writeText(c); this.showToast('Deck code copied — import it in the WARNO armory'); }
+        };
+      })
+    }));
+    return {
+      meta, teams,
+      allDecksLabel: allOpen ? 'Hide all decks' : 'Show all decks',
+      onAllDecks: () => this.setState(s => { const od = Object.assign({}, s.openDecks); keys.forEach(k => od[k] = !allOpen); return { openDecks: od }; })
+    };
+  }
+
+  buildRow(m) {
+    const me = m.players.find(p => p.userId === this.owner.id);
+    const out = this.outcome(m, me);
+    const RES = { win: ['W', 'var(--win)', 'var(--win-bg)', 'var(--win-line)'], loss: ['L', 'var(--loss)', 'var(--loss-bg)', 'var(--loss-line)'], draw: ['D', 'var(--sub)', 'var(--line2)', 'var(--line-strong)'], aborted: ['AB', 'var(--faint)', 'var(--bg)', 'var(--line)'] };
+    const rr = RES[out];
+    const MAG = { 0: 'total', 1: 'major', 2: 'minor', 4: 'minor', 5: 'major', 6: 'total' };
+    const TYPE = { ranked: ['Ranked', 'var(--accent)', 'var(--accent-bg)', 'var(--accent-line)'], casual: ['Casual', 'var(--sub)', 'var(--chip-bg)', 'var(--line-strong)'], vs_ai: ['vs AI', 'var(--amber)', 'var(--amber-bg)', 'var(--amber-line)'] };
+    const tt = TYPE[m.type];
+    const myDv = me && me.deck ? this.div(me.deck.divisionId) : { name: '—', alliance: null };
+    const opps = me ? m.players.filter(p => p.alliance !== me.alliance) : [];
+    const oppDvs = [...new Set(opps.map(p => p.deck ? this.div(p.deck.divisionId).name : '—'))];
+    const oppAl = opps.length && opps[0].deck ? this.div(opps[0].deck.divisionId).alliance : null;
+    const size = Math.round((m.config.nbMaxPlayer || 2) / 2);
+    const oppWithElo = opps.filter(p => !p.ai && p.elo != null);
+    const oppElo = oppWithElo.length ? oppWithElo.reduce((a, p) => a + p.elo, 0) / oppWithElo.length : null;
+    const rankedElo = m.type === 'ranked' && me && me.elo != null && oppElo != null;
+    const expanded = this.state.expanded === m.id;
+    const chip = (t) => 'font-size:10px; font-weight:700; letter-spacing:.03em; color:' + t[1] + '; background:' + t[2] + '; border:1px solid ' + t[3] + '; border-radius:3px; padding:1px 6px; white-space:nowrap;';
+    return {
+      key: m.id, expanded,
+      onClick: () => this.setState(s => ({ expanded: s.expanded === m.id ? null : m.id })),
+      date: this.fmtDate(m.date), time: this.fmtTime(m.date),
+      typeLabel: tt[0], typeStyle: chip(tt),
+      mapName: m.map.name, size: size + 'v' + size,
+      myDot: this.dot(myDv.alliance), myDiv: myDv.name,
+      oppDot: this.dot(oppAl), oppDiv: oppDvs.length > 1 ? oppDvs[0] + ' +' + (oppDvs.length - 1) : (oppDvs[0] || '—'),
+      resultLabel: rr[0], resultStyle: chip(rr), resultSub: m.result.present ? (MAG[m.result.victoryRaw] || '') : 'no result',
+      dur: this.fmtDur(m.result.duration),
+      eloOwn: rankedElo ? String(Math.round(me.elo)) : '',
+      eloVs: rankedElo ? 'vs' : '',
+      eloOpp: rankedElo ? String(Math.round(oppElo)) : '',
+      rowBg: expanded ? 'var(--row-hover)' : 'transparent',
+      stripe: rr[1],
+      detail: expanded ? this.buildDetail(m) : null
+    };
+  }
+
+  buildReport(uid, name, base) {
+    const games = base.filter(m => m.players.some(p => p.userId === uid && !p.ai));
+    const of = (m) => m.players.find(p => p.userId === uid);
+    const outs = games.map(m => this.outcome(m, of(m)));
+    const wins = outs.filter(o => o === 'win').length, losses = outs.filter(o => o === 'loss').length,
+      draws = outs.filter(o => o === 'draw').length, ab = outs.filter(o => o === 'aborted').length;
+    const decided = wins + losses;
+    const wr = decided ? (100 * wins / decided) : null;
+    const durs = games.map(m => m.result.duration).filter(d => d != null).sort((a, b) => a - b);
+    const avg = durs.length ? Math.round(durs.reduce((a, b) => a + b, 0) / durs.length) : null;
+    const med = durs.length ? durs[Math.floor(durs.length / 2)] : null;
+    const wrColor = v => v == null ? 'var(--ink)' : v >= 55 ? 'var(--win)' : v <= 45 ? 'var(--loss)' : 'var(--ink)';
+
+    const agg = {};
+    const addAgg = (bucket, key, alliance, won, counted) => {
+      const b = agg[bucket] = agg[bucket] || {};
+      const e = b[key] = b[key] || { g: 0, w: 0, l: 0, alliance };
+      e.g++; if (counted) { won ? e.w++ : e.l++; }
+    };
+    for (const m of games) {
+      const p = of(m), o = this.outcome(m, p);
+      const counted = o === 'win' || o === 'loss', won = o === 'win';
+      if (p.deck) { const dv = this.div(p.deck.divisionId); addAgg('my', dv.name, dv.alliance, won, counted); }
+      const enemyDivs = new Map();
+      for (const e of m.players) if (e.alliance !== p.alliance && e.deck) { const dv = this.div(e.deck.divisionId); enemyDivs.set(dv.name, dv.alliance); }
+      for (const [n, al] of enemyDivs) addAgg('vs', n, al, won, counted);
+      addAgg('map', m.map.name, null, won, counted);
+      for (const other of m.players) {
+        if (other.ai || other.userId === uid) continue;
+        addAgg(other.alliance === p.alliance ? 'with' : 'vsPlayer', other.name, null, won, counted);
+      }
+    }
+    const tblRows = (bucket) => Object.entries(agg[bucket] || {})
+      .sort((a, b) => b[1].g - a[1].g).slice(0, 14)
+      .map(([n, e]) => {
+        const d = e.w + e.l, pct = d ? 100 * e.w / d : null;
+        return {
+          name: n, dot: e.alliance ? this.dot(e.alliance) : 'display:none;', games: String(e.g), wl: e.w + '–' + e.l,
+          wr: pct == null ? '—' : pct.toFixed(0) + '%', wrColor: wrColor(pct),
+          bar: 'height:100%; width:' + (pct == null ? 0 : pct.toFixed(0)) + '%; background:' + (pct == null ? 'var(--line-strong)' : pct >= 50 ? 'var(--win)' : 'var(--loss)') + '; border-radius:3px;'
+        };
+      });
+
+    const scope = this.props.eloChartScope || 'ranked';
+    let eloGames = games.filter(m => m.type === 'ranked' && of(m).elo != null);
+    let note = 'ranked matches in base, ELO at match start';
+    if (scope === 'all' || eloGames.length < 2) { eloGames = games.filter(m => of(m).elo != null); note = 'all matches in base with recorded ELO'; }
+    eloGames = eloGames.slice().sort((a, b) => a.date.localeCompare(b.date));
+    const vals = eloGames.map(m => of(m).elo);
+    let eloPoints = '', eloMin = '', eloMax = '', eloStart = '', eloEnd = '', eloRange = '';
+    const hasElo = vals.length >= 2;
+    if (hasElo) {
+      const mn = Math.min(...vals), mx = Math.max(...vals), span = (mx - mn) || 1;
+      eloPoints = vals.map((v, i) => (i / (vals.length - 1) * 640).toFixed(1) + ',' + (156 - (v - mn) / span * 142).toFixed(1)).join(' ');
+      eloMin = String(Math.round(mn)); eloMax = String(Math.round(mx));
+      eloStart = this.fmtDate(eloGames[0].date); eloEnd = this.fmtDate(eloGames[eloGames.length - 1].date);
+      eloRange = Math.round(vals[0]) + ' → ' + Math.round(vals[vals.length - 1]);
+    }
+
+    return {
+      name, idLabel: 'Eugen ID ' + uid, base: String(games.length),
+      stats: [
+        { label: 'GAMES IN BASE', value: String(games.length), sub: ab + ' aborted excluded from WR', color: 'var(--ink)' },
+        { label: 'WINRATE', value: wr == null ? '—' : wr.toFixed(1) + '%', sub: decided + ' decided games', color: wrColor(wr) },
+        { label: 'RECORD', value: wins + '–' + losses + '–' + draws, sub: 'W–L–D', color: 'var(--ink)' },
+        { label: 'AVG DURATION', value: this.fmtDur(avg), sub: durs.length + ' timed games', color: 'var(--ink)' },
+        { label: 'MEDIAN DURATION', value: this.fmtDur(med), sub: 'half end sooner', color: 'var(--ink)' }
+      ],
+      hasElo, eloPoints, eloMin, eloMax, eloStart, eloEnd, eloRange, eloNote: note,
+      tables: [
+        { span: '2', title: 'Winrate by own division', sub: 'What this player picks, and how it goes', col: 'DIVISION', rows: tblRows('my') },
+        { span: '2', title: 'Winrate vs enemy division', sub: 'Each enemy division counted once per match', col: 'AGAINST', rows: tblRows('vs') },
+        { span: '2', title: 'Winrate by map', sub: 'All match types in base', col: 'MAP', rows: tblRows('map') },
+        { span: '3', title: 'Winrate with', sub: 'Games sharing a team with this player', col: 'TEAMMATE', rows: tblRows('with') },
+        { span: '3', title: 'Winrate against', sub: 'Games on the opposing team', col: 'OPPONENT', rows: tblRows('vsPlayer') }
+      ]
+    };
+  }
+
+  cachedReport(tab) {
+    const key = tab.uid + '|' + (this.props.eloChartScope || 'ranked');
+    this._reportCache = this._reportCache || {};
+    if (!this._reportCache[key]) this._reportCache[key] = this.buildReport(tab.uid, tab.name, this._cached || []);
+    return this._reportCache[key];
+  }
+
+  openReport(uid, name) {
+    this.setState(s => {
+      const tabs = s.tabs.some(t => t.uid === uid) ? s.tabs : [...s.tabs, { uid, name }];
+      return { tabs, active: 'r:' + uid };
+    });
+  }
+
+  renderVals() {
+    const s = this.state, d = s.data, f = s.f;
+    const loading = !d && !s.error;
+    const empty = { name: '', idLabel: '', base: '0', stats: [], hasElo: false, eloPoints: '', eloMin: '', eloMax: '', eloStart: '', eloEnd: '', eloRange: '', eloNote: '', tables: [] };
+    const base = {
+      isLoading: loading, isError: !!s.error, errorMsg: s.error || '', isSample: false,
+      sourceLabel: '', datasetLabel: '', tabs: [], isMatches: false, isReport: false, report: empty,
+      typeOpts: [], resultOpts: [], sizeOpts: [], natoDivOpts: [], pactDivOpts: [], otherDivOpts: [], mapOpts: [],
+      fQ: f.q, fMinDur: f.minDur, minDurLabel: 'off', fMap: f.map, fFrom: f.from, fTo: f.to, fPlayerId: '', playerOpts: [], divSides: [], playerSides: [], hasReportTarget: false, reportTargetLabel: '', onReportTarget: () => {}, playerHint: 'Matches any player in the lobby',
+      tallyLabel: 'W \u2013 L \u2013 D', tallyW: '0', tallyL: '0', tallyD: '0', wrValue: '\u2014', wrSub: '', wrColor: 'var(--ink)',
+      onQ: () => {}, onMinDur: () => {}, onPlayerPick: () => {}, onMap: () => {}, onFrom: () => {}, onTo: () => {}, onReset: () => {},
+      ownerName: '', baseCount: '0', totalCount: '0', baseSub: '', isTable: false, cols: [], rows: [],
+      pageLabel: '', onPrevPage: () => {}, onNextPage: () => {}, prevDisabled: true, nextDisabled: true, prevStyle: '', nextStyle: '',
+      toast: s.toast,
+      themeLabel: s.theme === 'dark' ? '\u25D0 Light' : '\u25D0 Dark',
+      onTheme: () => this.applyTheme(s.theme === 'dark' ? 'light' : 'dark')
+    };
+    if (!d) return base;
+
+    const sk = s.sort.key, sd = s.sort.dir;
+    const cacheKey = JSON.stringify(f) + '|' + sk + '|' + sd;
+    let filtered;
+    if (this._cacheKey === cacheKey && this._cacheData === d) {
+      filtered = this._cached;
+    } else {
+      filtered = d.matches.filter(m => this.passes(m, f));
+      filtered.sort((x, y) => { const vx = this.sortVal(x, sk), vy = this.sortVal(y, sk); const c = vx < vy ? -1 : vx > vy ? 1 : 0; if (c) return c * sd; return y.date.localeCompare(x.date); });
+      this._cacheKey = cacheKey; this._cacheData = d; this._cached = filtered;
+      this._tally = null; this._reportCache = {};
+    }
+    const pageSize = this.props.pageSize || 50;
+    const maxPage = Math.max(0, Math.ceil(filtered.length / pageSize) - 1);
+    const page = Math.min(s.page, maxPage);
+    const slice = filtered.slice(page * pageSize, (page + 1) * pageSize);
+
+    if (this._metaData !== d) {
+      const counts = { ranked: 0, casual: 0, vs_ai: 0 };
+      for (const m of d.matches) counts[m.type] = (counts[m.type] || 0) + 1;
+      const divEntries = Object.entries(d.divisions).map(([id, v]) => ({ id, name: v.name || ('Division #' + id), alliance: v.alliance }));
+      divEntries.sort((a, b) => a.name.localeCompare(b.name));
+      const divById = {};
+      for (const e of divEntries) divById[e.id] = e;
+      const pc = {};
+      for (const m of d.matches) for (const p of m.players) if (!p.ai) {
+        const e = pc[p.userId] = pc[p.userId] || { name: p.name, n: 0 };
+        e.n++; e.name = p.name;
+      }
+      this._meta = {
+        counts, divEntries, divById,
+        maps: [...new Set(d.matches.map(m => m.map.name))].sort(),
+        playerOpts: Object.entries(pc).sort((a, b) => b[1].n - a[1].n)
+          .map(([id, e]) => ({ value: id, name: e.name, n: e.n, label: e.name + ' — ' + e.n + (e.n === 1 ? ' game' : ' games') })),
+        playerById: pc
+      };
+      this._metaData = d;
+    }
+    const counts = this._meta.counts;
+    if (!this._tally) {
+      const tl = { win: 0, loss: 0, draw: 0, aborted: 0 };
+      for (const m of filtered) tl[this.outcome(m, m.players.find(p => p.userId === this.owner.id))]++;
+      this._tally = tl;
+    }
+    const tally = this._tally, abortedInBase = tally.aborted;
+    const decided = tally.win + tally.loss;
+    const wr = decided ? 100 * tally.win / decided : null;
+
+    const divEntries = this._meta.divEntries, maps = this._meta.maps;
+    const divOpt = e => ({ value: e.id, label: e.name });
+    this._playerOpts = this._meta.playerOpts;
+
+    const toggle = (group, key) => () => this.setF({ [group]: Object.assign({}, f[group], { [key]: !f[group][key] }) });
+    const sizeBtn = (n) => ({
+      label: n + 'v' + n,
+      onToggle: toggle('sizes', n),
+      style: 'flex:1; text-align:center; font-size:11.5px; font-weight:600; padding:4px 0; border-radius:4px; cursor:pointer; border:1px solid ' + (f.sizes[n] ? 'var(--accent-line); background:var(--accent-bg); color:var(--accent);' : 'var(--line); background:var(--surface); color:var(--faint2);')
+    });
+    const col = (key, label, right) => ({
+      label: label + (sk === key ? (sd === 1 ? ' \u25B2' : ' \u25BC') : ''),
+      onClick: () => this.setState(st => ({ sort: { key, dir: st.sort.key === key ? -st.sort.dir : (key === 'date' || key === 'elo' || key === 'dur' ? -1 : 1) }, page: 0, expanded: null })),
+      style: 'cursor:pointer; user-select:none; white-space:nowrap;' + (right ? ' text-align:right;' : '') + (sk === key ? ' color:var(--ink);' : '')
+    });
+    const navBtn = (dis) => 'font-size:12px; font-weight:600; padding:5px 12px; border-radius:4px; border:1px solid var(--line-strong); background:var(--surface); color:var(--sub); cursor:pointer; opacity:' + (dis ? '.45' : '1') + ';';
+
+    const divName = id => { const e = this._meta.divById[id]; return e ? e.name : 'Division #' + id; };
+    const divAlliance = id => { const e = this._meta.divById[id]; return e ? e.alliance : null; };
+    const side = (key, label, placeholder, nameOf, dotOf) => ({
+      label, placeholder,
+      hasChips: f[key].length > 0,
+      chips: f[key].map(id => ({ name: nameOf(id), dot: dotOf ? dotOf(id) : '', onRemove: () => this.setF({ [key]: f[key].filter(x => x !== id) }) })),
+      onAdd: e => { const v = e.target.value; e.target.value = ''; if (v && !f[key].includes(v)) this.setF({ [key]: [...f[key], v] }); }
+    });
+    const playerName = id => { const o = this._meta.playerById[id]; return o ? o.name : id; };
+
+    let target = null;
+    if (f.q) {
+      const q = f.q.toLowerCase();
+      if (this._picked && this._picked.name.toLowerCase() === q) target = this._picked;
+      else {
+        const hits = this._playerOpts.filter(o => o.name.toLowerCase().includes(q) || o.value === f.q);
+        const exact = hits.filter(o => o.name.toLowerCase() === q);
+        const chosen = exact.length === 1 ? exact[0] : (hits.length === 1 ? hits[0] : null);
+        if (chosen) target = { uid: chosen.value, name: chosen.name };
+      }
+      if (target) target.games = (this._meta.playerById[target.uid] || {}).n || 0;
+    }
+
+    const active = s.active;
+    const tabBtn = (key, label, closable, onClose) => ({
+      label, closable,
+      onClick: () => this.setState({ active: key }),
+      onClose: onClose ? (e) => { e.stopPropagation(); onClose(); } : null,
+      style: 'display:flex; align-items:center; padding:9px 14px; font-size:13px; cursor:pointer; border-bottom:2px solid ' + (active === key ? 'var(--accent); color:var(--ink); font-weight:600;' : 'transparent; color:var(--faint);')
+    });
+    const tabs = [tabBtn('matches', 'Matches', false, null),
+      ...s.tabs.map(t => tabBtn('r:' + t.uid, t.name, true, () => this.setState(st => ({
+        tabs: st.tabs.filter(x => x.uid !== t.uid),
+        active: st.active === 'r:' + t.uid ? 'matches' : st.active
+      }))))];
+
+    const isMatches = active === 'matches';
+    const rTab = !isMatches && s.tabs.find(t => 'r:' + t.uid === active);
+    const gen = d.generatedAt ? this.fmtDate(d.generatedAt) : '';
+
+    return Object.assign(base, {
+      isSample: (d.tool || '').includes('SAMPLE'),
+      sourceLabel: (d.sourceDirs || []).join(', '),
+      datasetLabel: d.matches.length + ' replays · generated ' + gen,
+      tabs, isMatches, isReport: !!rTab,
+      report: rTab ? this.cachedReport(rTab) : empty,
+      typeOpts: [
+        { label: 'Ranked (1v1 duel)', checked: f.types.ranked, onToggle: toggle('types', 'ranked'), count: String(counts.ranked) },
+        { label: 'Casual multiplayer', checked: f.types.casual, onToggle: toggle('types', 'casual'), count: String(counts.casual) },
+        { label: 'vs AI / solo', checked: f.types.vs_ai, onToggle: toggle('types', 'vs_ai'), count: String(counts.vs_ai) }
+      ],
+      resultOpts: [
+        { label: 'Wins', checked: f.results.win, onToggle: toggle('results', 'win') },
+        { label: 'Losses', checked: f.results.loss, onToggle: toggle('results', 'loss') },
+        { label: 'Draws', checked: f.results.draw, onToggle: toggle('results', 'draw') },
+        { label: 'Aborted (no result)', checked: f.results.aborted, onToggle: toggle('results', 'aborted') }
+      ],
+      sizeOpts: [sizeBtn(1), sizeBtn(2), sizeBtn(3), sizeBtn(4)],
+      natoDivOpts: divEntries.filter(e => e.alliance === 'NATO').map(divOpt),
+      pactDivOpts: divEntries.filter(e => e.alliance === 'PACT').map(divOpt),
+      otherDivOpts: divEntries.filter(e => e.alliance !== 'NATO' && e.alliance !== 'PACT').map(divOpt),
+      mapOpts: maps.map(m => ({ value: m, label: m })),
+      minDurLabel: f.minDur > 0 ? '≥ ' + f.minDur + ' min' : 'off',
+      onQ: e => this.setF({ q: e.target.value }),
+      onMinDur: e => this.setF({ minDur: +e.target.value }),
+      playerOpts: this._playerOpts,
+      fPlayerId: '',
+      onPlayerPick: e => { const id = e.target.value; e.target.value = ''; const o = this._playerOpts.find(x => x.value === id); if (o) { this._picked = { uid: id, name: o.name }; this.setF({ q: o.name }); } },
+      hasReportTarget: !!target,
+      reportTargetLabel: target ? 'Report: ' + target.name : '',
+      onReportTarget: () => { if (target) this.openReport(target.uid, target.name); },
+      playerHint: target ? target.games + ' matches in replays · opens in a new tab' : 'Matches any player in the lobby',
+      divSides: [side('divA', 'TEAM A', f.divA.length ? 'Add another division…' : 'Any division…', divName, id => this.dot(divAlliance(id))),
+        side('divB', 'TEAM B', f.divB.length ? 'Add another division…' : 'Any division…', divName, id => this.dot(divAlliance(id)))],
+      playerSides: [side('plA', 'TEAM A', f.plA.length ? 'Add another player…' : 'Any player…', playerName),
+        side('plB', 'TEAM B', f.plB.length ? 'Add another player…' : 'Any player…', playerName)],
+      tallyLabel: this.owner.name.toUpperCase() + ': W \u2013 L \u2013 D',
+      tallyW: String(tally.win), tallyL: String(tally.loss), tallyD: String(tally.draw),
+      wrValue: wr == null ? '\u2014' : wr.toFixed(1) + '%',
+      wrSub: decided + ' decided' + (tally.aborted ? ' · ' + tally.aborted + ' aborted' : ''),
+      wrColor: wr == null ? 'var(--ink)' : wr >= 55 ? 'var(--win)' : wr <= 45 ? 'var(--loss)' : 'var(--ink)',
+      onMap: e => this.setF({ map: e.target.value }),
+      onFrom: e => this.setF({ from: e.target.value }),
+      onTo: e => this.setF({ to: e.target.value }),
+      onReset: () => this.setState({ page: 0, f: { q: '', types: { ranked: true, casual: true, vs_ai: true }, results: { win: true, loss: true, draw: true, aborted: true }, minDur: 10, divA: [], divB: [], plA: [], plB: [], map: '', from: '', to: '', sizes: { 1: true, 2: true, 3: true, 4: true } } }),
+      ownerName: this.owner.name,
+      baseCount: String(filtered.length), totalCount: String(d.matches.length),
+      baseSub: (d.matches.length - filtered.length) + ' excluded by filters · ' + abortedInBase + ' aborted in base',
+      isTable: isMatches,
+      cols: [col('date', 'DATE'), col('type', 'TYPE'), col('map', 'MAP'), col('size', 'SIZE'), col('myDiv', 'MY DIVISION'), col('oppDiv', 'OPPONENT'), col('result', 'RESULT'), col('dur', 'TIME', true), col('elo', 'ELO YOU\u00A0/\u00A0OPP', true)],
+      rows: slice.map(m => this.buildRow(m)),
+      pageLabel: filtered.length ? (page * pageSize + 1) + '–' + Math.min(filtered.length, (page + 1) * pageSize) + ' of ' + filtered.length : 'No matches pass the current filters',
+      onPrevPage: () => this.setState({ page: Math.max(0, page - 1), expanded: null }),
+      onNextPage: () => this.setState({ page: Math.min(maxPage, page + 1), expanded: null }),
+      prevDisabled: page <= 0, nextDisabled: page >= maxPage,
+      prevStyle: navBtn(page <= 0), nextStyle: navBtn(page >= maxPage)
+    });
+  }
+}
+</script>
+</body>
+</html>
