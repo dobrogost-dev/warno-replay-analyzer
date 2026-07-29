@@ -20,8 +20,20 @@ import gamedata
 import replay
 import report
 
-VERSION = '1.0'
+VERSION = '1.1'
 REPORT_NAME = 'WARNO Replay Report.html'
+
+
+def _bundled_emblems():
+    """Division emblems extracted from the game at build time (tools/extract_emblems.py)."""
+    try:
+        with open(os.path.join(report.asset_dir(), 'emblems.json'), encoding='utf-8') as f:
+            return json.load(f).get('images', {})
+    except (OSError, ValueError):
+        return {}
+
+
+EMBLEMS = _bundled_emblems()
 
 
 def app_dir():
@@ -160,6 +172,16 @@ def build(folders, names, log=print):
     divisions = {i: names['divisions'][i] for i in sorted(div_ids) if i in names['divisions']}
     units = {i: names['units'][i] for i in sorted(unit_ids) if i in names['units']}
 
+    # ship only the emblems these divisions actually use
+    emblems = {}
+    for division in divisions.values():
+        key = division.get('emblem')
+        if key and key in EMBLEMS and key not in emblems:
+            emblems[key] = EMBLEMS[key]
+    if EMBLEMS:
+        log('Division emblems: %d of %d divisions illustrated'
+            % (sum(1 for d in divisions.values() if d.get('emblem') in emblems), len(divisions)))
+
     counts = {t: sum(1 for m in unique if m['type'] == t) for t in ('ranked', 'casual', 'vs_ai')}
     aborted = sum(1 for m in unique if not m['result']['present'])
     log('Parsed %d/%d replays in %.1fs  (%d ranked, %d casual, %d vs AI, %d aborted%s)'
@@ -181,6 +203,7 @@ def build(folders, names, log=print):
         'gameVersions': sorted({m['version'] for m in unique if m['version']}),
         'divisions': divisions,
         'units': units,
+        'emblems': emblems,
         'matches': unique,
         'errors': errors,
         'localSteamIds': gamedata.local_steam_ids(),

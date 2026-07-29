@@ -26,7 +26,8 @@ dist\WARNO Replay Analyzer.exe
 3. **Dekoduje talie** z `PlayerDeckContent` — dywizja, wszystkie karty,
    weterancja i transport każdej z nich.
 4. **Podstawia prawdziwe nazwy** dywizji i jednostek, czytając je z Twojej
-   instalacji WARNO (patrz niżej).
+   instalacji WARNO (patrz niżej), i dokłada **herby dywizji** wyciągnięte
+   wprost z plików gry.
 5. **Zapisuje `WARNO Replay Report.html`** obok `.exe` i otwiera go w Twojej
    domyślnej przeglądarce — tej z ustawień Windows, odczytanej z `UserChoice`
    w rejestrze. (Standardowe `webbrowser.open()` wysyła URL `file:///`, a ten
@@ -55,6 +56,30 @@ wynik jest cache'owany w `%LOCALAPPDATA%\WARNO Replay Analyzer\`.
 
 Jeśli gry nie ma na tym komputerze, używany jest snapshot zaszyty w `.exe`
 (384 dywizje, 2839 jednostek). Nieznane ID pokazują się jako `#1234`.
+
+## Herby dywizji
+
+Herbów nie ma w paczce moddingowej — są „ugotowane" w spakowanych archiwach gry,
+więc wyciąga je osobne narzędzie budowania, a `.exe` wozi gotowe PNG-i
+(114 herbów, ~760 KB).
+
+```
+pip install zstandard
+python tools/extract_emblems.py        # -> src/assets/emblems.json
+```
+
+Łańcuch: `Divisions.ndf` daje każdej dywizji `EmblemTexture`, `DivisionTextures.ndf`
+tłumaczy to na ścieżkę assetu, a archiwa `Data/PC/**/ZZ_*.dat` trzymają go jako
+`.tgv`. Format kontenera i tekstury odtworzony za
+[ev1313/wgrd-cons-parsers](https://github.com/ev1313/wgrd-cons-parsers), z dwiema
+różnicami, które WARNO ma względem Wargame: nagłówek słownika plików ma 9 bajtów
+zamiast 10, a mipmapy siedzą w ramkach **Zstandard** za krótkim nagłówkiem `ZSTD`.
+Piksele to `A8B8G8R8_LIN`, czyli zwykłe RGBA — nie ma bloków BC do dekodowania.
+Czytnik ([tools/warno_edat.py](tools/warno_edat.py)) sprawdza sumy MD5 każdego
+rozpakowanego pliku. Archiwa są przeglądane od najstarszej wersji do najnowszej,
+więc łatki nadpisują herby z wersji bazowej.
+
+Po patchu, który dodaje dywizje, wystarczy uruchomić narzędzie ponownie.
 
 ## Raport
 
@@ -95,10 +120,14 @@ Enter przed zamknięciem okna.
 ## Budowanie ze źródeł
 
 ```
-pip install pyinstaller
+pip install pyinstaller zstandard
 python tools/make_snapshot.py     # odświeża snapshot nazw (wymaga WARNO)
+python tools/extract_emblems.py   # odświeża herby (wymaga WARNO)
 python build.py                   # -> dist/WARNO Replay Analyzer.exe
 ```
+
+`zstandard` jest potrzebny wyłącznie przy wyciąganiu herbów — samo `.exe` nie ma
+żadnych zależności poza biblioteką standardową.
 
 Można też uruchamiać bez budowania: `python src/main.py`.
 
@@ -109,8 +138,10 @@ src/main.py            wejście: wykrywanie folderów, przebieg, zapis, przeglą
 src/replay.py          parser .rpl3 i dekoder kodów talii
 src/gamedata.py        wyciąganie nazw z instalacji gry + cache + fallback
 src/report.py          wklejanie CSS/JS/danych w jeden plik HTML
-src/assets/            viewer.html / viewer.css / viewer.js + snapshot nazw
-tools/make_snapshot.py generator snapshotu dołączanego do .exe
+src/assets/            viewer.html / viewer.css / viewer.js + snapshot nazw + herby
+tools/make_snapshot.py generator snapshotu nazw dołączanego do .exe
+tools/warno_edat.py    czytnik archiwów edat i tekstur TGV (tylko przy budowaniu)
+tools/extract_emblems.py wyciąganie herbów dywizji z plików gry
 build.py               budowanie .exe
 reference/             materiał wyjściowy (prototyp w Pythonie + makieta UI)
 ```

@@ -7,6 +7,7 @@ var D = window.DATA;
 var M = D.matches || [];
 var DIV = D.divisions || {};
 var UNI = D.units || {};
+var EMB = D.emblems || {};
 
 /* ------------------------------------------------------------------ helpers */
 
@@ -38,7 +39,8 @@ function division(id) {
   var d = DIV[String(id)];
   return {
     name: (d && d.name) || (id == null ? '—' : 'Division #' + id),
-    alliance: (d && d.alliance) || '', country: (d && d.country) || '', type: (d && d.type) || ''
+    alliance: (d && d.alliance) || '', country: (d && d.country) || '', type: (d && d.type) || '',
+    emblem: (d && EMB[d.emblem]) || ''
   };
 }
 function unit(id) {
@@ -49,14 +51,22 @@ function unit(id) {
   };
 }
 function dot(alliance) { return '<span class="dot ' + esc(alliance || '') + '"></span>'; }
+/* The division's own emblem when we have it, otherwise the alliance colour. */
+function badge(d, size) {
+  if (!d.emblem) return dot(d.alliance);
+  return '<img class="emb" alt="" style="width:' + size + 'px;height:' + size + 'px;" src="data:image/png;base64,'
+    + d.emblem + '">';
+}
 
 /* ------------------------------------------------------------------- state */
 
+/* Defaults aim at "real games I played": no AI, no rage-quits in the first ten
+   minutes, nothing without a result, nothing I only downloaded. */
 function freshFilters() {
   return {
-    q: '', types: { ranked: true, casual: true, vs_ai: true },
-    results: { win: true, loss: true, draw: true, aborted: true, none: true },
-    minDur: 0, divA: [], divB: [], plA: [], plB: [], map: '', from: '', to: '',
+    q: '', types: { ranked: true, casual: true, vs_ai: false },
+    results: { win: true, loss: true, draw: true, aborted: false, none: false },
+    minDur: 10, divA: [], divB: [], plA: [], plB: [], map: '', from: '', to: '',
     sizes: { 1: true, 2: true, 3: true, 4: true }
   };
 }
@@ -111,7 +121,8 @@ var DIVOPTS = (function () {
     });
   });
   return Object.keys(seen).map(function (id) {
-    var d = division(id); return { id: id, name: d.name, alliance: d.alliance };
+    var d = division(id);
+    return { id: id, name: d.name, alliance: d.alliance, emblem: d.emblem, div: d };
   }).sort(function (a, b) { return a.name.localeCompare(b.name); });
 })();
 
@@ -408,48 +419,112 @@ function fill(select, opts) {
   }).join('');
 }
 
-/* A chip row + "add" dropdown bound to one of the side-filter arrays. */
+/* A chip row + "add" control bound to one of the side-filter arrays.
+   Players use a native <select>; divisions get a custom list, because an
+   <option> cannot carry the division emblem. */
 function sideList(key, label, kind) {
   var chips = el('div', { class: 'chips' });
-  var sel = el('select', {
-    onchange: function () {
-      var v = this.value; this.value = '';
-      if (v && S.f[key].indexOf(v) < 0) { S.f[key].push(v); S.page = 0; syncSidebar(); render(); }
-    }
-  });
-  var node = el('div', { style: 'margin-bottom:7px;' }, [
+  var sl = { chips: chips, key: key, kind: kind };
+
+  function pick(v) {
+    if (v && S.f[key].indexOf(v) < 0) { S.f[key].push(v); S.page = 0; syncSidebar(); render(); }
+  }
+
+  var control;
+  if (kind === 'division') {
+    sl.button = el('button', {
+      class: 'picker-btn',
+      onclick: function () { togglePicker(sl); }
+    });
+    sl.search = el('input', {
+      type: 'text', class: 'picker-search', placeholder: 'Filter divisions…',
+      oninput: function () { filterPicker(sl, this.value); }
+    });
+    sl.list = el('div', { class: 'picker-list' });
+    sl.panel = el('div', { class: 'picker-panel', hidden: 'hidden' }, [sl.search, sl.list]);
+    buildPickerList(sl, pick);
+    control = el('div', { class: 'picker' }, [sl.button, sl.panel]);
+  } else {
+    sl.sel = el('select', {
+      onchange: function () { var v = this.value; this.value = ''; pick(v); }
+    });
+    control = sl.sel;
+  }
+
+  sl.node = el('div', { style: 'margin-bottom:7px;' }, [
     el('div', { style: 'font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--faint);margin-bottom:4px;' }, [label]),
-    chips, sel
+    chips, control
   ]);
-  return { node: node, chips: chips, sel: sel, key: key, kind: kind };
+  return sl;
+}
+
+function buildPickerList(sl, pick) {
+  [['NATO', 'NATO'], ['PACT', 'PACT'], ['', 'Unknown alliance']].forEach(function (g) {
+    var opts = DIVOPTS.filter(function (o) { return (o.alliance || '') === g[0]; });
+    if (!opts.length) return;
+    sl.list.appendChild(el('div', { class: 'picker-group' }, [g[1]]));
+    opts.forEach(function (o) {
+      var row = el('button', {
+        class: 'picker-opt', 'data-name': o.name.toLowerCase(), 'data-id': o.id,
+        onclick: function () { closePicker(); pick(o.id); }
+      });
+      row.innerHTML = badge(o.div, 20) + '<span>' + esc(o.name) + '</span>';
+      sl.list.appendChild(row);
+    });
+  });
+}
+
+var openPicker = null;
+function closePicker() {
+  if (openPicker) { openPicker.panel.hidden = true; openPicker = null; }
+}
+function togglePicker(sl) {
+  var wasOpen = openPicker === sl;
+  closePicker();
+  if (wasOpen) return;
+  sl.panel.hidden = false;
+  openPicker = sl;
+  sl.search.value = '';
+  filterPicker(sl, '');
+  sl.search.focus();
+}
+function filterPicker(sl, text) {
+  var q = text.trim().toLowerCase();
+  var visible = 0;
+  Array.prototype.forEach.call(sl.list.children, function (node) {
+    if (node.className === 'picker-group') { node.hidden = !!q; return; }
+    var hit = !q || node.getAttribute('data-name').indexOf(q) >= 0;
+    node.hidden = !hit;
+    if (hit) visible++;
+  });
+  sl.list.scrollTop = 0;
+  return visible;
 }
 
 function syncSideList(sl) {
   var list = S.f[sl.key];
+  var isDiv = sl.kind === 'division';
   sl.chips.innerHTML = '';
   sl.chips.style.display = list.length ? '' : 'none';
   list.forEach(function (v) {
-    var name = sl.kind === 'division' ? division(v).name
-      : (PLAYERS.filter(function (p) { return p.id === v; })[0] || { name: v }).name;
-    var d = sl.kind === 'division' ? division(v).alliance : '';
+    var d = isDiv ? division(v) : null;
+    var name = isDiv ? d.name : (PLAYERS.filter(function (p) { return p.id === v; })[0] || { name: v }).name;
     var chip = el('div', { class: 'chip', onclick: function () {
       S.f[sl.key] = S.f[sl.key].filter(function (x) { return x !== v; });
       S.page = 0; syncSidebar(); render();
     } }, []);
-    chip.innerHTML = (sl.kind === 'division' ? dot(d) : '') + '<span>' + esc(name) + '</span><span class="x">×</span>';
+    chip.innerHTML = (isDiv ? badge(d, 16) : '') + '<span>' + esc(name) + '</span><span class="x">×</span>';
     sl.chips.appendChild(chip);
   });
 
-  var placeholder = list.length ? 'Add another…' : (sl.kind === 'division' ? 'Any division…' : 'Any player…');
-  if (sl.kind === 'division') {
-    var groups = [['NATO', 'NATO'], ['PACT', 'PACT'], ['', 'Other']];
-    sl.sel.innerHTML = '<option value="">' + esc(placeholder) + '</option>' + groups.map(function (g) {
-      var opts = DIVOPTS.filter(function (o) { return (o.alliance || '') === g[0]; });
-      if (!opts.length) return '';
-      return '<optgroup label="' + g[1] + '">' + opts.map(function (o) {
-        return '<option value="' + esc(o.id) + '">' + esc(o.name) + '</option>';
-      }).join('') + '</optgroup>';
-    }).join('');
+  var placeholder = list.length ? 'Add another…' : (isDiv ? 'Any division…' : 'Any player…');
+  if (isDiv) {
+    sl.button.innerHTML = '<span>' + esc(placeholder) + '</span><span class="caret">▾</span>';
+    Array.prototype.forEach.call(sl.list.children, function (node) {
+      if (node.className !== 'picker-group') {
+        node.classList.toggle('chosen', list.indexOf(node.getAttribute('data-id')) >= 0);
+      }
+    });
   } else {
     sl.sel.innerHTML = '<option value="">' + esc(placeholder) + '</option>' + PLAYERS.map(function (p) {
       return '<option value="' + esc(p.id) + '">' + esc(p.name) + ' — ' + p.n + '</option>';
@@ -511,12 +586,12 @@ var VICTORY = ['Total defeat', 'Major defeat', 'Minor defeat', 'Draw', 'Minor vi
 
 function rowHtml(m) {
   var p = me(m), out = outcome(m, p);
-  var myDiv = p && p.deck ? division(p.deck.divisionId) : { name: '—', alliance: '' };
+  var myDiv = p && p.deck ? division(p.deck.divisionId) : { name: '—', alliance: '', emblem: '' };
   var opps = p ? m.players.filter(function (x) { return x.alliance !== p.alliance; }) : m.players;
-  var oppNames = [], oppAl = '';
+  var oppNames = [], oppDiv = { alliance: '', emblem: '' };
   opps.forEach(function (x) {
     var d = x.deck ? division(x.deck.divisionId) : null;
-    if (d) { if (oppNames.indexOf(d.name) < 0) oppNames.push(d.name); if (!oppAl) oppAl = d.alliance; }
+    if (d) { if (oppNames.indexOf(d.name) < 0) oppNames.push(d.name); if (!oppNames[1]) oppDiv = d; }
   });
   var oppLabel = oppNames.length > 1 ? oppNames[0] + ' +' + (oppNames.length - 1) : (oppNames[0] || '—');
   var withElo = opps.filter(function (x) { return !x.ai && x.elo != null; });
@@ -530,8 +605,8 @@ function rowHtml(m) {
     + '<div><span class="tag ' + m.type + '">' + { ranked: 'Ranked', casual: 'Casual', vs_ai: 'vs AI' }[m.type] + '</span></div>'
     + '<div class="ell" title="' + esc(m.map.raw) + '">' + esc(m.map.name) + '</div>'
     + '<div class="mono" style="font-size:11.5px;color:var(--sub);">' + m.teamSize + 'v' + m.teamSize + '</div>'
-    + '<div class="withdot">' + dot(myDiv.alliance) + '<span class="ell">' + esc(myDiv.name) + '</span></div>'
-    + '<div class="withdot">' + dot(oppAl) + '<span class="ell">' + esc(oppLabel) + '</span></div>'
+    + '<div class="withdot">' + badge(myDiv, 18) + '<span class="ell">' + esc(myDiv.name) + '</span></div>'
+    + '<div class="withdot">' + badge(oppDiv, 18) + '<span class="ell">' + esc(oppLabel) + '</span></div>'
     + '<div><span class="tag ' + RESULT_TAG[out] + '">' + RESULT_TAG[out] + '</span>'
     + '<span class="sub" style="margin-left:5px;">'
     + (out === 'none' ? 'not in match' : m.result.present ? (MAGNITUDE[m.result.victoryRaw] || '') : 'no result')
@@ -582,7 +657,8 @@ function detailHtml(m) {
 
 function playerHtml(m, x, i, p) {
   var key = m.id + ':' + i, open = !!S.openDecks[key];
-  var d = x.deck ? division(x.deck.divisionId) : { name: 'No deck', alliance: '', country: '', type: '' };
+  var d = x.deck ? division(x.deck.divisionId)
+                 : { name: 'No deck', alliance: '', country: '', type: '', emblem: '' };
   var h = '<div class="pcard"><div class="prow">'
     + '<div class="pname">' + esc(x.name) + '</div>'
     + (p && x.userId === p.userId ? '<span class="badge you">YOU</span>' : '')
@@ -591,7 +667,7 @@ function playerHtml(m, x, i, p) {
     + '<div class="mono" style="font-size:11px;color:var(--faint);">'
     + (x.elo != null ? Math.round(x.elo) + ' ELO' : 'no ELO')
     + (x.level != null ? ' · lvl ' + x.level : '') + '</div></div>'
-    + '<div class="prow" style="margin-top:6px;">' + dot(d.alliance)
+    + '<div class="prow" style="margin-top:6px;">' + badge(d, 30)
     + '<span style="font-size:12.5px;color:var(--sub);flex:1;">' + esc(d.name)
     + (d.country ? ' <span class="sub">' + esc(d.country) + (d.type ? ' · ' + esc(d.type) : '') + '</span>' : '')
     + (x.deck && x.deck.modded ? ' · modded' : '') + '</span>';
@@ -697,10 +773,10 @@ function buildReport(uid, name) {
   var med = durations.length ? durations[Math.floor(durations.length / 2)] : null;
 
   var agg = {};
-  function add(bucket, key, alliance, counted, won) {
+  function add(bucket, key, mark, counted, won) {
     var b = agg[bucket] || (agg[bucket] = { rows: {}, order: [] });
     var e = b.rows[key];
-    if (!e) { e = b.rows[key] = { name: key, alliance: alliance, g: 0, w: 0, l: 0 }; b.order.push(key); }
+    if (!e) { e = b.rows[key] = { name: key, mark: mark, g: 0, w: 0, l: 0 }; b.order.push(key); }
     e.g++;
     if (counted) { if (won) e.w++; else e.l++; }
   }
@@ -709,7 +785,7 @@ function buildReport(uid, name) {
     var counted = o === 'win' || o === 'loss', won = o === 'win';
     if (p.deck) {
       var d = division(p.deck.divisionId);
-      add('my', d.name, d.alliance, counted, won);
+      add('my', d.name, badge(d, 16), counted, won);
       var seenUnits = {};
       p.deck.cards.forEach(function (c) {
         var u = unit(c[1]);
@@ -718,11 +794,14 @@ function buildReport(uid, name) {
         add('units', u.name, '', counted, won);
       });
     }
-    var enemy = {};
+    var enemy = {}, enemyOrder = [];
     m.players.forEach(function (x) {
-      if (x.alliance !== p.alliance && x.deck) { var d = division(x.deck.divisionId); enemy[d.name] = d.alliance; }
+      if (x.alliance !== p.alliance && x.deck) {
+        var e = division(x.deck.divisionId);
+        if (!enemy[e.name]) { enemy[e.name] = e; enemyOrder.push(e.name); }
+      }
     });
-    Object.keys(enemy).forEach(function (n) { add('vs', n, enemy[n], counted, won); });
+    enemyOrder.forEach(function (n) { add('vs', n, badge(enemy[n], 16), counted, won); });
     add('map', m.map.name, '', counted, won);
     m.players.forEach(function (x) {
       if (x.ai || x.userId === uid || !x.userId) return;
@@ -759,7 +838,7 @@ function tableHtml(title, sub, col, rows, span) {
   if (!rows.length) h += '<div class="hint" style="padding:6px 0;">No data in this base.</div>';
   rows.forEach(function (r) {
     var d = r.w + r.l, pct = d ? 100 * r.w / d : null;
-    h += '<div class="trow"><div class="nm">' + (r.alliance ? dot(r.alliance) : '') + '<span>' + esc(r.name) + '</span></div>'
+    h += '<div class="trow"><div class="nm">' + (r.mark || '') + '<span>' + esc(r.name) + '</span></div>'
       + '<div class="num">' + r.g + '</div><div class="num">' + r.w + '–' + r.l + '</div>'
       + '<div class="num ' + wrClass(pct) + '" style="font-weight:600;">' + (pct == null ? '—' : pct.toFixed(0) + '%') + '</div>'
       + '<div class="bar-bg"><div style="width:' + (pct == null ? 0 : pct.toFixed(0)) + '%;background:'
@@ -888,9 +967,14 @@ function boot() {
     setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
   });
 
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape') closePicker();
+  });
+
   document.body.addEventListener('click', function (ev) {
     var t = ev.target, node;
     if (!t || !t.closest) return;
+    if (openPicker && !t.closest('.picker')) closePicker();
     if ((node = t.closest('[data-close]'))) {
       ev.stopPropagation();
       var uid = node.getAttribute('data-close');

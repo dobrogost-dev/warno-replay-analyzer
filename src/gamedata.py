@@ -23,7 +23,7 @@ import os
 import re
 import zipfile
 
-SCHEMA = 3  # bump when the emitted structure changes so old caches are dropped
+SCHEMA = 4  # bump when the emitted structure changes so old caches are dropped
 
 BASE_ZIP = os.path.join('Mods', 'ModData', 'base.zip')
 UNITS_CSV = os.path.join('Mods', 'ExampleAssets', 'Localisation', 'UNITS.csv')
@@ -265,6 +265,7 @@ def _divisions(text, loc):
             'country': _first(r'CountryId\s*=\s*"([^"]*)"', body),
             'type': DIVISION_TYPE.get(type_token, type_token) if type_token else None,
             'cfg': _first(r"CfgName\s*=\s*'([^']*)'", body),
+            'emblem': _first(r'EmblemTexture\s*=\s*"([^"]*)"', body),
         }
     return out
 

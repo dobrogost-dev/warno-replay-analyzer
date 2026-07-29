@@ -83,6 +83,28 @@ button { cursor: pointer; }
 .chip .x { color:var(--faint); font-size:12px; line-height:1; }
 .dot { display:inline-block; width:7px; height:7px; border-radius:2px; flex:none; background:var(--faint2); }
 .dot.NATO { background:var(--accent); } .dot.PACT { background:var(--pact); }
+.emb { object-fit:contain; flex:none; vertical-align:middle; }
+/* division picker -- expands inline so the sticky sidebar never clips it */
+.picker { position:relative; }
+.picker-btn { display:flex; align-items:center; gap:6px; width:100%; text-align:left;
+  border:1px solid var(--line-strong); border-radius:4px; padding:5px 6px; font-size:12.5px;
+  background:var(--surface); color:var(--ink); }
+.picker-btn:hover { border-color:var(--accent); }
+.picker-btn span:first-child { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.picker-btn .caret { color:var(--faint2); font-size:11px; }
+.picker-panel { margin-top:4px; border:1px solid var(--line-strong); border-radius:4px;
+  background:var(--surface); overflow:hidden; }
+.picker-search { width:100%; border:0; border-bottom:1px solid var(--line2); padding:6px 8px;
+  font-size:12.5px; background:var(--surface2); color:var(--ink); outline:none; }
+.picker-list { max-height:264px; overflow-y:auto; }
+.picker-group { font-size:9.5px; font-weight:700; letter-spacing:.09em; color:var(--faint2);
+  padding:6px 8px 3px; position:sticky; top:0; background:var(--surface); }
+.picker-opt { display:flex; align-items:center; gap:7px; width:100%; text-align:left; border:0;
+  background:none; color:var(--ink); font-size:12px; padding:3px 8px; line-height:1.3; }
+.picker-opt:hover { background:var(--accent-bg); }
+.picker-opt.chosen { color:var(--accent); font-weight:600; }
+.picker-opt span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
 .sizes { display:flex; gap:4px; }
 .sizes button { flex:1; text-align:center; font-size:11.5px; font-weight:600; padding:4px 0;
   border-radius:4px; border:1px solid var(--line); background:var(--surface); color:var(--faint2); }
