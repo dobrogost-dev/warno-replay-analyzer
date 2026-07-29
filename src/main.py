@@ -7,6 +7,9 @@ self-contained HTML report next to itself and opens it in your browser.
 import argparse
 import json
 import os
+import pathlib
+import shlex
+import subprocess
 import sys
 import time
 import traceback
@@ -43,6 +46,77 @@ def writable(folder):
         return True
     except OSError:
         return False
+
+
+def default_browser_command():
+    """The command Windows Settings' "default browser" actually maps to.
+
+    Neither webbrowser.open() nor os.startfile() reliably lands there: the
+    former hands Windows a `file:///` URL and the `file:` protocol is claimed by
+    Edge, and the latter follows the .html association, which the machine-wide
+    `htmlfile` ProgId can also point at Edge. So read the user's own choice.
+    """
+    try:
+        import winreg
+    except ImportError:
+        return None
+
+    progid = None
+    for key in (r'Software\Microsoft\Windows\Shell\Associations\UrlAssociations\https\UserChoice',
+                r'Software\Microsoft\Windows\Shell\Associations\UrlAssociations\http\UserChoice',
+                r'Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.html\UserChoice'):
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key) as k:
+                progid = winreg.QueryValueEx(k, 'ProgId')[0]
+                break
+        except OSError:
+            continue
+    if not progid:
+        return None
+
+    command = None
+    for hive, prefix in ((winreg.HKEY_CURRENT_USER, r'Software\Classes'),
+                         (winreg.HKEY_CLASSES_ROOT, '')):
+        try:
+            path = (prefix + '\\' if prefix else '') + progid + r'\shell\open\command'
+            with winreg.OpenKey(hive, path) as k:
+                command = winreg.QueryValueEx(k, '')[0]
+                break
+        except OSError:
+            continue
+    if not command:
+        return None
+
+    argv = [part.strip('"') for part in shlex.split(command, posix=False)]
+    return argv if argv and os.path.exists(argv[0]) else None
+
+
+PLACEHOLDERS = ('%1', '%L', '%*')
+# Chromium's --single-argument takes the rest of the command line *verbatim*, so
+# the quotes subprocess puts around a path with spaces end up inside the URL.
+# We pass a properly quoted argument instead, so the flag has to go.
+DROP_FLAGS = ('--single-argument',)
+
+
+def open_in_browser(path):
+    """Open the report, preferring the browser the user actually picked."""
+    url = pathlib.Path(os.path.abspath(path)).as_uri()
+    argv = default_browser_command()
+    if argv:
+        filled = [url if p.upper() in PLACEHOLDERS else p
+                  for p in argv if p.lower() not in DROP_FLAGS]
+        if url not in filled:      # a command with no placeholder at all
+            filled.append(url)
+        try:
+            subprocess.Popen(filled, close_fds=True)
+            return True
+        except OSError:
+            pass
+    try:
+        os.startfile(path)
+        return True
+    except (AttributeError, OSError):
+        return webbrowser.open(url)
 
 
 def build(folders, names, log=print):
@@ -165,8 +239,8 @@ def main(argv=None):
         print('Data:   %s' % json_path)
 
     if not args.no_open:
-        webbrowser.open('file:///' + path.replace('\\', '/'))
-        print('Opening in your browser...')
+        print('Opening in your default browser...')
+        open_in_browser(path)
     return 0
 
 

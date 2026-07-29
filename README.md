@@ -27,7 +27,12 @@ dist\WARNO Replay Analyzer.exe
    weterancja i transport każdej z nich.
 4. **Podstawia prawdziwe nazwy** dywizji i jednostek, czytając je z Twojej
    instalacji WARNO (patrz niżej).
-5. **Zapisuje `WARNO Replay Report.html`** obok `.exe` i otwiera go w przeglądarce.
+5. **Zapisuje `WARNO Replay Report.html`** obok `.exe` i otwiera go w Twojej
+   domyślnej przeglądarce — tej z ustawień Windows, odczytanej z `UserChoice`
+   w rejestrze. (Standardowe `webbrowser.open()` wysyła URL `file:///`, a ten
+   protokół jest w Windows zwykle przejęty przez Edge; `os.startfile` idzie za
+   skojarzeniem `.html`, które maszynowy ProgId `htmlfile` też potrafi przekierować
+   na Edge. Stąd jawny odczyt wyboru użytkownika.)
    Cały raport — dane, style, skrypt — jest w tym jednym pliku, więc można go
    wysłać komuś mailem i otworzy się u niego tak samo.
 
