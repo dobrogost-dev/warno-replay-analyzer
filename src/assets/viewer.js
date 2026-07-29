@@ -113,6 +113,13 @@ var PLAYERS = (function () {
     .sort(function (a, b) { return b.n - a.n || a.name.localeCompare(b.name); });
 })();
 
+var PLAYER_BY_ID = (function () {
+  var m = {};
+  PLAYERS.forEach(function (p) { m[p.id] = p.name; });
+  return m;
+})();
+function playerName(id) { return PLAYER_BY_ID[id] || ''; }
+
 var DIVOPTS = (function () {
   var seen = {};
   M.forEach(function (m) {
@@ -289,8 +296,12 @@ function buildSidebar() {
       onchange: function () {
         var v = this.value;
         var p = PLAYERS.filter(function (x) { return x.id === v; })[0];
-        if (p) { S.owner = { id: p.id, name: p.name }; S.page = 0; render(); }
+        if (p) { S.owner = { id: p.id, name: p.name }; S.page = 0; syncSidebar(); render(); }
       }
+    }),
+    side.ownerReport = el('button', {
+      class: 'target',
+      onclick: function () { openReport(S.owner.id, S.owner.name); }
     }),
     el('div', { class: 'hint', style: 'margin-top:4px;' }, ['Win/loss and the report tally are read from this player’s side.'])
   ]);
@@ -554,6 +565,9 @@ function syncTarget() {
 
 function syncSidebar() {
   side.owner.value = S.owner.id;
+  side.ownerReport.innerHTML = '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
+    + 'Full report: ' + esc(S.owner.name) + '</span><span style="color:var(--faint);font-size:12px;">→</span>';
+  side.ownerReport.style.display = S.owner.id ? '' : 'none';
   side.q.value = S.f.q;
   side.dur.value = S.f.minDur;
   side.durVal.textContent = S.f.minDur ? '≥ ' + S.f.minDur + ' min' : 'off';
@@ -773,10 +787,13 @@ function buildReport(uid, name) {
   var med = durations.length ? durations[Math.floor(durations.length / 2)] : null;
 
   var agg = {};
-  function add(bucket, key, mark, counted, won) {
+  function add(bucket, key, init, counted, won) {
     var b = agg[bucket] || (agg[bucket] = { rows: {}, order: [] });
     var e = b.rows[key];
-    if (!e) { e = b.rows[key] = { name: key, mark: mark, g: 0, w: 0, l: 0 }; b.order.push(key); }
+    if (!e) {
+      e = b.rows[key] = { name: init.name, mark: init.mark || '', id: init.id || '', g: 0, w: 0, l: 0 };
+      b.order.push(key);
+    }
     e.g++;
     if (counted) { if (won) e.w++; else e.l++; }
   }
@@ -785,13 +802,13 @@ function buildReport(uid, name) {
     var counted = o === 'win' || o === 'loss', won = o === 'win';
     if (p.deck) {
       var d = division(p.deck.divisionId);
-      add('my', d.name, badge(d, 16), counted, won);
+      add('my', d.name, { name: d.name, mark: badge(d, 16) }, counted, won);
       var seenUnits = {};
       p.deck.cards.forEach(function (c) {
         var u = unit(c[1]);
         if (seenUnits[u.name]) return;
         seenUnits[u.name] = true;
-        add('units', u.name, '', counted, won);
+        add('units', u.name, { name: u.name }, counted, won);
       });
     }
     var enemy = {}, enemyOrder = [];
@@ -801,11 +818,15 @@ function buildReport(uid, name) {
         if (!enemy[e.name]) { enemy[e.name] = e; enemyOrder.push(e.name); }
       }
     });
-    enemyOrder.forEach(function (n) { add('vs', n, badge(enemy[n], 16), counted, won); });
-    add('map', m.map.name, '', counted, won);
+    enemyOrder.forEach(function (n) {
+      add('vs', n, { name: n, mark: badge(enemy[n], 16) }, counted, won);
+    });
+    add('map', m.map.name, { name: m.map.name }, counted, won);
     m.players.forEach(function (x) {
       if (x.ai || x.userId === uid || !x.userId) return;
-      add(x.alliance === p.alliance ? 'with' : 'vsPlayer', x.name, '', counted, won);
+      /* keyed by id, not nick -- people rename themselves between matches */
+      add(x.alliance === p.alliance ? 'with' : 'vsPlayer', x.userId,
+          { name: playerName(x.userId) || x.name, id: x.userId }, counted, won);
     });
   });
 
@@ -838,7 +859,10 @@ function tableHtml(title, sub, col, rows, span) {
   if (!rows.length) h += '<div class="hint" style="padding:6px 0;">No data in this base.</div>';
   rows.forEach(function (r) {
     var d = r.w + r.l, pct = d ? 100 * r.w / d : null;
-    h += '<div class="trow"><div class="nm">' + (r.mark || '') + '<span>' + esc(r.name) + '</span></div>'
+    var label = r.id
+      ? '<span class="linkish" data-report="' + esc(r.id) + '" data-name="' + esc(r.name) + '">' + esc(r.name) + '</span>'
+      : '<span>' + esc(r.name) + '</span>';
+    h += '<div class="trow"><div class="nm">' + (r.mark || '') + label + '</div>'
       + '<div class="num">' + r.g + '</div><div class="num">' + r.w + '–' + r.l + '</div>'
       + '<div class="num ' + wrClass(pct) + '" style="font-weight:600;">' + (pct == null ? '—' : pct.toFixed(0) + '%') + '</div>'
       + '<div class="bar-bg"><div style="width:' + (pct == null ? 0 : pct.toFixed(0)) + '%;background:'
