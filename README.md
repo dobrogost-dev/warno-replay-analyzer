@@ -183,9 +183,12 @@ WARNO Replay Analyzer.exe [FOLDER ...] [opcje]
 Bez argumentów (np. po dwukliku) skanuje domyślny folder replejów i czeka na
 Enter przed zamknięciem okna.
 
-Na starcie miga winieta ASCII (0,2 s rysowania, 0,1 s pauzy, potem czyszczenie
-ekranu). Pomijana jest, gdy wyjście idzie do pliku lub potoku albo gdy konsola
-jest węższa niż 77 znaków — żeby nie zaśmiecać logów i nie łamać obrazka.
+Na starcie miga winieta (0,2 s rysowania, 0,1 s pauzy, potem czyszczenie ekranu).
+Obrazek losowany jest spośród tych, które **mieszczą się w bieżącym oknie
+konsoli** — wyższy przewinąłby sobie własną górę poza ekran w trakcie rysowania.
+Mają 70 znaków szerokości i 46, 38 oraz 24 linie wysokości, więc w domyślnym
+oknie 120×30 pojawia się tylko najniższy; w większym losują się wszystkie trzy.
+Przy wyjściu do pliku lub potoku winieta jest pomijana, żeby nie zaśmiecać logów.
 
 ## Budowanie ze źródeł
 
