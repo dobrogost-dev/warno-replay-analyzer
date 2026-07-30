@@ -15,6 +15,34 @@ nie jest podpisany certyfikatem. **Więcej informacji → Uruchom mimo to.**
 Jeśli wolisz nie ufać cudzemu binarium, zbuduj je sam — patrz *Budowanie ze
 źródeł* na dole.
 
+## Wymagania
+
+`.exe` jest samowystarczalny: **nie wymaga Pythona, żadnych bibliotek ani
+instalacji**. W środku siedzi interpreter (`python312.dll`), biblioteka
+standardowa, runtime C (`ucrtbase.dll`) i OpenSSL — więc nie trzeba nawet
+pakietu Visual C++ Redistributable. Z bibliotek systemowych importuje tylko
+`KERNEL32`, `ADVAPI32` i `USER32`.
+
+Konieczne:
+
+* 64-bitowy Windows (binarka x64, konsolowa),
+* zapisywalny `%TEMP%` — przy starcie plik rozpakowuje się tam do katalogu
+  tymczasowego i po zakończeniu go sprząta,
+* miejsce na raport: domyślnie folder obok `.exe`, a gdy nie da się tam pisać
+  (np. `Program Files`), raport idzie do `%LOCALAPPDATA%\WARNO Replay Analyzer`.
+
+Opcjonalne — bez tego program działa, tylko daje mniej:
+
+| Czego brakuje | Co się dzieje |
+| --- | --- |
+| WARNO nie zainstalowane | nazwy i herby z dołączonego snapshotu zamiast z Twojej wersji gry |
+| brak internetu | awatary pomijane po jednym szybkim sprawdzeniu, bez czekania |
+| brak przeglądarki | raport i tak powstaje jako plik `.html`, tylko się nie otworzy |
+| brak replejów | pusty raport z komunikatem, bez błędu |
+
+`pip install pyinstaller zstandard` z sekcji *Budowanie ze źródeł* dotyczy
+wyłącznie budowania — do uruchomienia gotowego `.exe` nie jest potrzebne nic.
+
 ## Co robi
 
 1. **Znajduje repleje** w dwóch miejscach:
