@@ -47,6 +47,7 @@ button { cursor: pointer; }
 /* music control, top right next to the theme switch */
 .audio { display:flex; align-items:center; gap:6px; }
 .audio-btn { padding:2px 7px; font-size:13px; line-height:1.3; min-width:28px; }
+.audio-btn:disabled { opacity:.4; cursor:default; border-color:var(--line); color:var(--faint2); }
 .audio-vol { width:78px; accent-color:var(--accent); cursor:pointer; }
 
 .tabs { display:flex; gap:2px; padding:0 24px; }

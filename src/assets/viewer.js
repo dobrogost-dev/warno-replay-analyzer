@@ -1150,6 +1150,15 @@ var MUSIC = (function () {
       var i = at - 1;
       return (started && order.length && tracks[order[i]]) ? tracks[order[i]].name : '';
     },
+    get specialActive() { return specialOn || !!specialPending; },
+    /* Skipping is for the shuffle. While the 2137 track holds the floor it is
+       supposed to keep looping, so the button goes dead rather than fighting it. */
+    skip: function () {
+      if (specialOn || specialPending || !tracks.length) return false;
+      if (!started) { this.begin(); return true; }
+      next();
+      return true;
+    },
     begin: function () {                 /* called from the first user gesture */
       if (started) return;
       started = true;
@@ -1218,10 +1227,15 @@ function buildAudioControl() {
     class: 'ghost audio-btn', title: 'Pause / resume music',
     onclick: function () { MUSIC.togglePlay(); syncAudioControl(); }
   });
+  var skip = el('button', {
+    class: 'ghost audio-btn', title: 'Next track',
+    onclick: function () { MUSIC.skip(); syncAudioControl(); }
+  }, ['⏭']);
   box.appendChild(play);
+  box.appendChild(skip);
   box.appendChild(toggle);
   box.appendChild(slider);
-  audioNodes = { toggle: toggle, slider: slider, play: play };
+  audioNodes = { toggle: toggle, slider: slider, play: play, skip: skip };
   return box;
 }
 
@@ -1231,6 +1245,9 @@ function syncAudioControl() {
   audioNodes.slider.value = Math.round(MUSIC.volume * 100);
   audioNodes.toggle.textContent = MUSIC.muted || MUSIC.volume === 0 ? '🔇' : '🔊';
   audioNodes.play.textContent = MUSIC.playing ? '⏸' : '▶';
+  var locked = MUSIC.specialActive || !MUSIC.tracks.length;
+  audioNodes.skip.disabled = locked;
+  audioNodes.skip.title = locked ? 'Next track (held while the ELO track plays)' : 'Next track';
   var name = MUSIC.nowPlaying();
   audioNodes.slider.title = name ? 'Music volume — ' + name : 'Music volume';
 }
