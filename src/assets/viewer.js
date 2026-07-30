@@ -1003,7 +1003,8 @@ function rowWr(r) { var d = r.w + r.l; return d ? r.w / d : null; }
 
 function compareRows(a, b, key) {
   if (key === 'name') return a.name.localeCompare(b.name);
-  if (key === 'wl') return a.w - b.w;
+  /* net result: 50-10 should outrank 50-40 rather than tie on wins alone */
+  if (key === 'wl') return (a.w - a.l) - (b.w - b.l);
   if (key === 'wr') {
     var x = rowWr(a), y = rowWr(b);
     if (x == null && y == null) return 0;
