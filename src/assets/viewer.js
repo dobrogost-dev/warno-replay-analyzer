@@ -96,6 +96,20 @@ function opponentElo(m, p) {
   return n ? sum / n : null;
 }
 
+/* Ladder position of the strongest opponent. Averaging positions the way we
+   average ratings would be meaningless -- rank is an ordering, not a quantity --
+   so this reports the best one faced. */
+function opponentRank(m, p) {
+  if (!p) return null;
+  var best = null;
+  m.players.forEach(function (x) {
+    if (x.alliance !== p.alliance && !x.ai && x.rank != null && (best == null || x.rank < best)) {
+      best = x.rank;
+    }
+  });
+  return best;
+}
+
 /* Slider bounds, from ranked matches only -- that is where the filter bites. */
 var ELO_RANGE = (function () {
   var lo = null, hi = null;
@@ -286,6 +300,7 @@ function sortVal(m, key) {
     case 'dur': return m.result.duration == null ? -1 : m.result.duration;
     /* the interesting half of that column is who you were up against */
     case 'elo': return opponentElo(m, p);
+    case 'oppRank': return opponentRank(m, p);
   }
   return 0;
 }
@@ -700,7 +715,8 @@ function syncSidebar() {
 var COLS = [
   ['date', 'DATE'], ['type', 'TYPE'], ['map', 'MAP'], ['size', 'SIZE'],
   ['myDiv', 'MY DIVISION'], ['oppDiv', 'OPPONENT'], ['result', 'RESULT'],
-  ['dur', 'TIME', 1], ['elo', 'ELO YOU / OPP', 1, 'Sorts by the opponent rating']
+  ['dur', 'TIME', 1], ['elo', 'ELO YOU / OPP', 1, 'Sorts by the opponent rating'],
+  ['oppRank', 'OPP RANK', 1, 'Best ladder position among the opponents, as it stood then']
 ];
 var RESULT_TAG = { win: 'W', loss: 'L', draw: 'D', aborted: 'AB', none: '–' };
 var MAGNITUDE = { 0: 'total', 1: 'major', 2: 'minor', 4: 'minor', 5: 'major', 6: 'total' };
@@ -717,6 +733,7 @@ function rowHtml(m) {
   });
   var oppLabel = oppNames.length > 1 ? oppNames[0] + ' +' + (oppNames.length - 1) : (oppNames[0] || '—');
   var oppElo = opponentElo(m, p);
+  var oppRank = opponentRank(m, p);
   /* show whichever side we know; blanking the cell because the other half is
      missing made filtered rows look like they had no rating at all */
   var eloCell = '';
@@ -740,7 +757,9 @@ function rowHtml(m) {
     + (out === 'none' ? 'not in match' : m.result.present ? (MAGNITUDE[m.result.victoryRaw] || '') : 'no result')
     + '</span></div>'
     + '<div class="r mono" style="font-size:12px;color:var(--sub);">' + fmtDur(m.result.duration) + '</div>'
-    + '<div class="r mono" style="font-size:12px;">' + eloCell + '</div></div>';
+    + '<div class="r mono" style="font-size:12px;">' + eloCell + '</div>'
+    + '<div class="r mono" style="font-size:12px;color:var(--sub);">'
+    + (oppRank != null ? '#' + oppRank : '') + '</div></div>';
   if (open) h += detailHtml(m);
   return h + '</div>';
 }
