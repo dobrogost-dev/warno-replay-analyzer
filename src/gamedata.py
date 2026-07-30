@@ -96,6 +96,21 @@ def _steam_roots():
 
 
 WARNO_APPID = '1611600'
+STEAM_ID64_BASE = 76561197960265728   # SteamID64 = base + 32-bit account id
+
+
+def cloud_owners():
+    """Steam Cloud replay folder -> SteamID64 of the account that owns it.
+
+    `userdata/<account id>/1611600/remote` names its owner in the path, which
+    is what tells us whose side a replay's result was recorded from.
+    """
+    out = {}
+    for path in steam_replay_dirs():
+        account = os.path.basename(os.path.dirname(os.path.dirname(path)))
+        if account.isdigit():
+            out[os.path.normcase(os.path.abspath(path))] = str(STEAM_ID64_BASE + int(account))
+    return out
 
 
 def steam_replay_dirs():

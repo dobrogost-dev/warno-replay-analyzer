@@ -177,9 +177,18 @@ reference/             materiał wyjściowy (prototyp w Pythonie + makieta UI)
 ## Uwagi o formacie repleja
 
 * Kontener `ESAV`; nagłówek JSON zaczyna się od `{"game"` ok. 48 bajtu.
-* `ingamePlayerId` to indeks w liście graczy posortowanej po numerze slotu —
-  wynik (`Victory` 0–6) jest zapisany względem tego gracza.
 * Blok `{"result":...}` na końcu pliku **nie istnieje**, gdy mecz przerwano.
+* `Victory` (0–6: 0/1/2 porażka totalna/duża/mała, 3 remis, 4/5/6 zwycięstwo
+  małe/duże/totalne) jest zapisane **z perspektywy gracza, który zapisał
+  replej** — blok wyniku tworzy jego klient.
+* **`ingamePlayerId` nie wskazuje tego gracza.** Wygląda, jakby miał, ale na
+  805 własnych replejach z tego komputera trafia tylko w 63% przypadków, a przy
+  czterech graczach w 27%. Opieranie na nim wyniku dawało błędnego zwycięzcę
+  w 224 z 814 meczów. Właściciela ustalamy po SteamID: ścieżka Steam Cloud
+  `userdata/<account id>/` koduje go wprost (`SteamID64 = 76561197960265728 +
+  account id`), a `PlayerAvatar` każdego gracza zawiera jego SteamID64.
+  Dla replejów przysłanych przez kogoś innego zostaje `ingamePlayerId` jako
+  przybliżenie — takie mecze są w szczegółach oznaczone jako zgadywane.
 * W kodzie talii ID dywizji to wartość wprost z `DeckSerializer`, a ID jednostki
   i transportu to ta wartość **+1** (0 jest zarezerwowane dla „brak transportu").
 * `PlayerElo` równe 0 oznacza brak rankingu, nie wynik 0 — nie jest uśredniane.

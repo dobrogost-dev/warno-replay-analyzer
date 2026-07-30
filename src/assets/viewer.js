@@ -643,6 +643,12 @@ function detailHtml(m) {
   if (m.server) bits.push('lobby: ' + m.server);
   if (m.mods) bits.push('MODS: ' + m.mods);
   if (m.dateSource === 'file date') bits.push('date from file timestamp');
+  /* Victory is stored from the saving player's point of view, so say whose. */
+  var anchor = m.result.anchor != null ? m.players[m.result.anchor] : null;
+  if (anchor && m.result.present) {
+    bits.push('result recorded from ' + anchor.name + '’s side'
+      + (m.result.anchorSource === 'ingameId' ? ' (guessed — replay not saved by you)' : ''));
+  }
 
   var alliances = [];
   m.players.forEach(function (x) { if (alliances.indexOf(x.alliance) < 0) alliances.push(x.alliance); });

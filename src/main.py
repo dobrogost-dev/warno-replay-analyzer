@@ -20,7 +20,7 @@ import gamedata
 import replay
 import report
 
-VERSION = '1.1'
+VERSION = '1.2'
 REPORT_NAME = 'WARNO Replay Report.html'
 
 
@@ -136,13 +136,26 @@ def build(folders, names, log=print):
     files = replay.find_replays(folders)
     log('Found %d replay file%s' % (len(files), '' if len(files) == 1 else 's'))
 
+    # A replay's result is recorded from its owner's point of view. A Steam
+    # Cloud path names that owner outright; otherwise fall back to whichever
+    # accounts have signed in on this PC.
+    cloud = gamedata.cloud_owners()
+    local_ids = gamedata.local_steam_ids()
+
+    def owners_for(path):
+        key = os.path.normcase(os.path.abspath(path))
+        for folder, steam_id in cloud.items():
+            if key.startswith(folder):
+                return [steam_id] + [i for i in local_ids if i != steam_id]
+        return local_ids
+
     matches, errors = [], []
     started = time.time()
     for i, path in enumerate(files, 1):
         if len(files) > 200 and i % 250 == 0:
             log('  ...%d/%d' % (i, len(files)))
         try:
-            matches.append(replay.parse(path))
+            matches.append(replay.parse(path, owners_for(path)))
         except Exception as e:
             errors.append({'file': os.path.basename(path), 'error': str(e)})
 

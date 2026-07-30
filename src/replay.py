@@ -169,7 +169,9 @@ def _timestamp(path):
 
 # ---------------------------------------------------------------- replay file
 
-def parse(path):
+def parse(path, owner_ids=()):
+    """Read one replay. `owner_ids` are SteamID64s that may own this file --
+    the Steam Cloud folder it came from first, then any account on this PC."""
     with open(path, 'rb') as f:
         data = f.read()
 
@@ -237,12 +239,25 @@ def parse(path):
     if not (0 <= local < len(players)):
         local = None
 
+    # The result block is written by the client that saved the replay, so
+    # Victory describes *that player's* outcome. Find them by Steam account:
+    # `ingamePlayerId` looks like it should say the same thing but does not --
+    # measured against 805 of this machine's own replays it points at the
+    # saving player in only 63% of cases, and just 27% of four-player games.
+    anchor, anchor_source = None, None
+    for i, p in enumerate(players):
+        if p['steamId'] and p['steamId'] in owner_ids:
+            anchor, anchor_source = i, 'owner'
+            break
+    if anchor is None and local is not None:
+        anchor, anchor_source = local, 'ingameId'   # best effort for shared replays
+
     victory = duration = winner = None
     if result and isinstance(result.get('result'), dict):
         victory = to_int(result['result'].get('Victory'))
         duration = to_int(result['result'].get('Duration'))
-        if victory is not None and local is not None:
-            mine = players[local]['alliance']
+        if victory is not None and anchor is not None:
+            mine = players[anchor]['alliance']
             winner = 'draw' if victory == 3 else (mine if victory > 3 else 1 - mine)
 
     stamp, stamp_source = _timestamp(path)
@@ -269,7 +284,8 @@ def parse(path):
             'gameType': to_int(game.get('GameType')),
         },
         'result': {'present': result is not None, 'victoryRaw': victory,
-                   'duration': duration, 'winnerAlliance': winner},
+                   'duration': duration, 'winnerAlliance': winner,
+                   'anchor': anchor, 'anchorSource': anchor_source},
         'localPlayer': local,
         'players': players,
     }
