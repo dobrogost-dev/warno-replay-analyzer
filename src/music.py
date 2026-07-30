@@ -67,5 +67,5 @@ def load(app_dir, asset_dir, log=print):
 
     log('Music: %d track%s in the shuffle%s (%.1f MB)'
         % (len(tracks), '' if len(tracks) == 1 else 's',
-           ', plus %s' % SPECIAL if special else '', total / 1e6))
+           ', plus a pdf music file' if special else '', total / 1e6))
     return {'tracks': tracks, 'special': special}
