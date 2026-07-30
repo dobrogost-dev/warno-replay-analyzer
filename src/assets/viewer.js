@@ -284,7 +284,8 @@ function sortVal(m, key) {
     }
     case 'result': return { win: 3, draw: 2, loss: 1, aborted: 0, none: -1 }[outcome(m, p)];
     case 'dur': return m.result.duration == null ? -1 : m.result.duration;
-    case 'elo': return p && p.elo != null ? p.elo : -1;
+    /* the interesting half of that column is who you were up against */
+    case 'elo': return opponentElo(m, p);
   }
   return 0;
 }
@@ -296,6 +297,12 @@ function filtered() {
   var k = S.sort.key, dir = S.sort.dir;
   list.sort(function (a, b) {
     var x = sortVal(a, k), y = sortVal(b, k);
+    /* rows with nothing to compare sink to the bottom either way, instead of
+       filling the top of the ascending view with blanks */
+    if (x == null || y == null) {
+      if (x == null && y == null) return b.date.localeCompare(a.date);
+      return x == null ? 1 : -1;
+    }
     if (x < y) return -dir;
     if (x > y) return dir;
     return b.date.localeCompare(a.date);
@@ -693,7 +700,7 @@ function syncSidebar() {
 var COLS = [
   ['date', 'DATE'], ['type', 'TYPE'], ['map', 'MAP'], ['size', 'SIZE'],
   ['myDiv', 'MY DIVISION'], ['oppDiv', 'OPPONENT'], ['result', 'RESULT'],
-  ['dur', 'TIME', 1], ['elo', 'ELO YOU / OPP', 1]
+  ['dur', 'TIME', 1], ['elo', 'ELO YOU / OPP', 1, 'Sorts by the opponent rating']
 ];
 var RESULT_TAG = { win: 'W', loss: 'L', draw: 'D', aborted: 'AB', none: '–' };
 var MAGNITUDE = { 0: 'total', 1: 'major', 2: 'minor', 4: 'minor', 5: 'major', 6: 'total' };
@@ -865,7 +872,8 @@ function matchesHtml() {
   } else {
     h += '<div class="scroll"><div class="grid head">'
       + COLS.map(function (c) {
-        return '<div data-sort="' + c[0] + '" class="' + (c[2] ? 'r ' : '') + (S.sort.key === c[0] ? 'on' : '') + '">'
+        return '<div data-sort="' + c[0] + '" class="' + (c[2] ? 'r ' : '') + (S.sort.key === c[0] ? 'on' : '') + '"'
+          + (c[3] ? ' title="' + esc(c[3]) + '"' : '') + '>'
           + c[1] + (S.sort.key === c[0] ? (S.sort.dir === 1 ? ' ▲' : ' ▼') : '') + '</div>';
       }).join('') + '</div>'
       + slice.map(rowHtml).join('') + '</div>';
