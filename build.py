@@ -33,10 +33,10 @@ def main():
         '--specpath', os.path.join(HERE, 'build'),
         '--paths', SRC,
         '--add-data', os.path.join(SRC, 'assets') + os.pathsep + 'assets',
-        # nothing here needs the stdlib's heavyweight optional modules
+        # trim what nothing here imports -- but leave email/http/urllib alone,
+        # avatar fetching goes through urllib.request and it pulls both in
         '--exclude-module', 'tkinter', '--exclude-module', 'unittest',
-        '--exclude-module', 'pydoc', '--exclude-module', 'email',
-        '--exclude-module', 'http', '--exclude-module', 'xml',
+        '--exclude-module', 'pydoc',
         os.path.join(SRC, 'main.py'),
     ]
     print(' '.join(cmd))

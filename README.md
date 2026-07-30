@@ -96,9 +96,13 @@ a pod każdym graczem pełna talia pogrupowana jak w armory, z weterancją
 (▲/▲▲/▲▲▲), transportami i przyciskiem kopiowania kodu talii do gry.
 
 Filtry po lewej: perspektywa (czyj wynik liczymy), szukanie gracza, konkretne
-zestawienie graczy A vs B, typ meczu, wynik, minimalny czas, dywizje A vs B,
-mapa, rozmiar, zakres dat. Strony A/B są zamienne — nie musisz zgadywać, po
-której stronie ktoś grał.
+zestawienie graczy A vs B, typ meczu, wynik, minimalny czas, **ELO przeciwnika**,
+dywizje A vs B, mapa, rozmiar, zakres dat. Strony A/B są zamienne — nie musisz
+zgadywać, po której stronie ktoś grał.
+
+Suwak ELO przeciwnika działa **wyłącznie na meczach rankingowych** — pozostałe
+typy przechodzą przez niego nietknięte, bo poza ladderem ELO przeciwnika nic nie
+znaczy. Chcesz zobaczyć same rankingowe? Odznacz „Casual multiplayer".
 
 **Zakładka gracza** (przycisk „Report" przy graczu lub w panelu filtrów) —
 statystyki liczone na aktualnie przefiltrowanej bazie: winrate, bilans, mediana
@@ -109,6 +113,25 @@ Perspektywa („kim jesteś") jest ustalana po koncie Steam zalogowanym na tym
 komputerze, a gdy się nie da — po tym, kto zapisał najwięcej replejów. Możesz ją
 zmienić w panelu filtrów.
 
+## Awatary Steam
+
+Domyślnie program **nie łączy się z siecią**. Jeśli chcesz obok nicków zobaczyć
+awatary graczy, uruchom go z `--avatars`:
+
+```
+"WARNO Replay Analyzer.exe" --avatars
+```
+
+Repleje zawierają SteamID64 każdego gracza (w polu `PlayerAvatar`), a publiczny
+XML profilu Steam zwraca adres miniatury bez żadnego klucza API. Na zewnątrz
+wychodzą wyłącznie te SteamID — nic o Tobie ani o Twoich meczach. Pobrane
+miniatury (32×32, ~1 KB) lądują w `%LOCALAPPDATA%\WARNO Replay Analyzer\avatars`,
+więc płacisz za to raz: pierwsze pobranie 433 awatarów zajęło minutę, każde
+kolejne uruchomienie 2 sekundy. Nierozwiązane profile (usunięte, prywatne) są
+zapamiętywane, żeby nie próbować ich w kółko.
+
+Awatary powiększają raport o mniej więcej 600 KB.
+
 ## Wiersz poleceń
 
 ```
@@ -117,6 +140,8 @@ WARNO Replay Analyzer.exe [FOLDER ...] [opcje]
   -o, --out KATALOG   gdzie zapisać raport (domyślnie obok .exe)
   --json              zapisz też data.json
   --no-open           nie otwieraj przeglądarki
+  --avatars           pobierz awatary Steam (jedyny krok korzystający z sieci)
+  --refresh-avatars   pobierz awatary ponownie, z pominięciem cache
   --game-dir ŚCIEŻKA  folder instalacji WARNO, jeśli nie został wykryty
   --refresh-data      wczytaj nazwy z gry ponownie, z pominięciem cache
 ```
@@ -165,6 +190,7 @@ jest powiązany z Eugen Systems ani przez nich firmowany.
 src/main.py            wejście: wykrywanie folderów, przebieg, zapis, przeglądarka
 src/replay.py          parser .rpl3 i dekoder kodów talii
 src/gamedata.py        wyciąganie nazw z instalacji gry + cache + fallback
+src/avatars.py         opcjonalne pobieranie awatarów Steam + cache
 src/report.py          wklejanie CSS/JS/danych w jeden plik HTML
 src/assets/            viewer.html / viewer.css / viewer.js + snapshot nazw + herby
 tools/make_snapshot.py generator snapshotu nazw dołączanego do .exe

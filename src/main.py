@@ -16,11 +16,12 @@ import traceback
 import webbrowser
 from datetime import datetime, timezone
 
+import avatars
 import gamedata
 import replay
 import report
 
-VERSION = '1.2'
+VERSION = '1.3'
 REPORT_NAME = 'WARNO Replay Report.html'
 
 
@@ -131,7 +132,7 @@ def open_in_browser(path):
         return webbrowser.open(url)
 
 
-def build(folders, names, log=print):
+def build(folders, names, want_avatars=False, refresh_avatars=False, log=print):
     """Parse every replay under `folders` into the dataset the viewer reads."""
     files = replay.find_replays(folders)
     log('Found %d replay file%s' % (len(files), '' if len(files) == 1 else 's'))
@@ -209,6 +210,15 @@ def build(folders, names, log=print):
         if len(errors) > 10:
             log('  ... and %d more' % (len(errors) - 10))
 
+    faces = {}
+    if want_avatars:
+        seen = []
+        for m in unique:
+            for p in m['players']:
+                if not p['ai'] and p['steamId'] and p['steamId'] not in seen:
+                    seen.append(p['steamId'])
+        faces = avatars.load(seen, log=log, refresh=refresh_avatars)
+
     return {
         'generatedAt': datetime.now(timezone.utc).isoformat(timespec='seconds'),
         'tool': 'warno-replay-analyzer/%s' % VERSION,
@@ -217,6 +227,7 @@ def build(folders, names, log=print):
         'divisions': divisions,
         'units': units,
         'emblems': emblems,
+        'avatars': faces,
         'matches': unique,
         'errors': errors,
         'localSteamIds': gamedata.local_steam_ids(),
@@ -235,6 +246,10 @@ def main(argv=None):
     ap.add_argument('--game-dir', help='WARNO install folder, if it is not auto-detected')
     ap.add_argument('--refresh-data', action='store_true',
                     help='re-read unit/division names from the game, ignoring the cache')
+    ap.add_argument('--avatars', action='store_true',
+                    help='fetch Steam avatar thumbnails (the only step that uses the network)')
+    ap.add_argument('--refresh-avatars', action='store_true',
+                    help='re-fetch avatars even if they are already cached')
     ap.add_argument('--version', action='version', version='WARNO Replay Analyzer ' + VERSION)
     args = ap.parse_args(argv)
 
@@ -257,7 +272,8 @@ def main(argv=None):
                                refresh=args.refresh_data, log=print)
     print('Unit/division names: %s' % how)
 
-    dataset = build(folders, names)
+    dataset = build(folders, names, want_avatars=args.avatars or args.refresh_avatars,
+                    refresh_avatars=args.refresh_avatars)
     dataset['dataSource'] = how
 
     out_dir = args.out or app_dir()

@@ -8,6 +8,7 @@ var M = D.matches || [];
 var DIV = D.divisions || {};
 var UNI = D.units || {};
 var EMB = D.emblems || {};
+var AVA = D.avatars || {};
 
 /* ------------------------------------------------------------------ helpers */
 
@@ -51,6 +52,14 @@ function unit(id) {
   };
 }
 function dot(alliance) { return '<span class="dot ' + esc(alliance || '') + '"></span>'; }
+/* Steam avatar, when --avatars was used and the profile resolved. */
+function face(steamId, size) {
+  var b64 = steamId && AVA[steamId];
+  if (!b64) return '';
+  return '<img class="ava" alt="" style="width:' + size + 'px;height:' + size
+    + 'px;" src="data:image/jpeg;base64,' + b64 + '">';
+}
+
 /* The division's own emblem when we have it, otherwise the alliance colour. */
 function badge(d, size) {
   if (!d.emblem) return dot(d.alliance);
@@ -67,9 +76,35 @@ function freshFilters() {
     q: '', types: { ranked: true, casual: true, vs_ai: false },
     results: { win: true, loss: true, draw: true, aborted: false, none: false },
     minDur: 10, divA: [], divB: [], plA: [], plB: [], map: '', from: '', to: '',
-    sizes: { 1: true, 2: true, 3: true, 4: true }
+    sizes: { 1: true, 2: true, 3: true, 4: true },
+    oppElo: null            /* [min, max]; null = whole range */
   };
 }
+
+/* Mean ELO of the players facing `p`, ignoring AI and unrated accounts. */
+function opponentElo(m, p) {
+  if (!p) return null;
+  var sum = 0, n = 0;
+  m.players.forEach(function (x) {
+    if (x.alliance !== p.alliance && !x.ai && x.elo != null) { sum += x.elo; n++; }
+  });
+  return n ? sum / n : null;
+}
+
+/* Slider bounds, from ranked matches only -- that is where the filter bites. */
+var ELO_RANGE = (function () {
+  var lo = null, hi = null;
+  M.forEach(function (m) {
+    if (m.type !== 'ranked') return;
+    m.players.forEach(function (p) {
+      if (p.ai || p.elo == null) return;
+      if (lo == null || p.elo < lo) lo = p.elo;
+      if (hi == null || p.elo > hi) hi = p.elo;
+    });
+  });
+  if (lo == null) return [0, 0];
+  return [Math.floor(lo / 50) * 50, Math.ceil(hi / 50) * 50];
+})();
 var S = {
   f: freshFilters(), sort: { key: 'date', dir: -1 }, page: 0, pageSize: 50,
   expanded: null, openDecks: {}, tabs: [], active: 'matches', owner: null,
@@ -106,8 +141,9 @@ var PLAYERS = (function () {
   M.forEach(function (m) {
     m.players.forEach(function (p) {
       if (p.ai || !p.userId) return;
-      var e = by[p.userId] || (by[p.userId] = { id: p.userId, name: p.name, n: 0 });
+      var e = by[p.userId] || (by[p.userId] = { id: p.userId, name: p.name, steamId: p.steamId, n: 0 });
       e.n++;
+      if (!e.steamId) e.steamId = p.steamId;
     });
   });
   return Object.keys(by).map(function (k) { return by[k]; })
@@ -183,6 +219,11 @@ function passes(m, f) {
   if (!f.sizes[Math.min(4, m.teamSize || 1)]) return false;
   if (!f.results[outcome(m, me(m))]) return false;
   if (f.minDur > 0 && m.result.duration != null && m.result.duration < f.minDur * 60) return false;
+  /* Opponent ELO only means something on the ladder, so leave other types alone. */
+  if (f.oppElo && m.type === 'ranked') {
+    var oe = opponentElo(m, me(m));
+    if (oe != null && (oe < f.oppElo[0] || oe > f.oppElo[1])) return false;
+  }
   if (f.q) {
     var q = f.q.toLowerCase();
     var hit = m.players.some(function (p) {
@@ -360,6 +401,22 @@ function buildSidebar() {
     el('div', { class: 'hint' }, ['Applies to matches with a recorded time'])
   ]);
 
+  section([
+    el('div', { style: 'display:flex;justify-content:space-between;' }, [
+      el('div', { class: 'lbl' }, ['Opponent ELO']),
+      side.oppEloVal = el('div', { class: 'mono', style: 'font-size:11px;color:var(--accent);' }, ['off'])
+    ]),
+    side.oppEloLo = el('input', {
+      type: 'range', min: ELO_RANGE[0], max: ELO_RANGE[1], step: '25', value: ELO_RANGE[0],
+      oninput: function () { onEloSlide(+this.value, null); }
+    }),
+    side.oppEloHi = el('input', {
+      type: 'range', min: ELO_RANGE[0], max: ELO_RANGE[1], step: '25', value: ELO_RANGE[1],
+      oninput: function () { onEloSlide(null, +this.value); }
+    }),
+    el('div', { class: 'hint' }, ['Ranked matches only — other match types are left untouched'])
+  ]);
+
   side.divA = sideList('divA', 'TEAM A', 'division');
   side.divB = sideList('divB', 'TEAM B', 'division');
   section([
@@ -423,6 +480,24 @@ function buildSidebar() {
   });
 
   return root;
+}
+
+/* Two plain sliders standing in for a range control; keep them from crossing. */
+function onEloSlide(lo, hi) {
+  var cur = S.f.oppElo || ELO_RANGE.slice();
+  if (lo != null) cur = [Math.min(lo, cur[1]), cur[1]];
+  if (hi != null) cur = [cur[0], Math.max(hi, cur[0])];
+  S.f.oppElo = (cur[0] <= ELO_RANGE[0] && cur[1] >= ELO_RANGE[1]) ? null : cur;
+  S.page = 0;
+  syncEloSliders();
+  render();
+}
+
+function syncEloSliders() {
+  var r = S.f.oppElo || ELO_RANGE;
+  side.oppEloLo.value = r[0];
+  side.oppEloHi.value = r[1];
+  side.oppEloVal.textContent = S.f.oppElo ? (r[0] + ' – ' + r[1]) : 'off';
 }
 
 function fill(select, opts) {
@@ -572,6 +647,7 @@ function syncSidebar() {
   side.q.value = S.f.q;
   side.dur.value = S.f.minDur;
   side.durVal.textContent = S.f.minDur ? '≥ ' + S.f.minDur + ' min' : 'off';
+  syncEloSliders();
   side.map.value = S.f.map;
   side.from.value = S.f.from;
   side.to.value = S.f.to;
@@ -681,6 +757,7 @@ function playerHtml(m, x, i, p) {
   var d = x.deck ? division(x.deck.divisionId)
                  : { name: 'No deck', alliance: '', country: '', type: '', emblem: '' };
   var h = '<div class="pcard"><div class="prow">'
+    + face(x.steamId, 20)
     + '<div class="pname">' + esc(x.name) + '</div>'
     + (p && x.userId === p.userId ? '<span class="badge you">YOU</span>' : '')
     + (x.ai ? '<span class="badge ai">AI</span>' : '')
@@ -833,7 +910,8 @@ function buildReport(uid, name) {
       if (x.ai || x.userId === uid || !x.userId) return;
       /* keyed by id, not nick -- people rename themselves between matches */
       add(x.alliance === p.alliance ? 'with' : 'vsPlayer', x.userId,
-          { name: playerName(x.userId) || x.name, id: x.userId }, counted, won);
+          { name: playerName(x.userId) || x.name, id: x.userId, mark: face(x.steamId, 16) },
+          counted, won);
     });
   });
 
@@ -912,8 +990,10 @@ function tableHtml(bucket, title, sub, col, allRows, span, limit) {
 
 function reportHtml(uid, name) {
   var r = buildReport(uid, name);
+  var known = PLAYERS.filter(function (p) { return p.id === uid; })[0];
   var h = '<div>'
-    + '<div style="display:flex;align-items:baseline;gap:12px;margin-bottom:4px;">'
+    + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">'
+    + face(known && known.steamId, 30)
     + '<div style="font-size:22px;font-weight:700;letter-spacing:-.01em;">' + esc(r.name) + '</div>'
     + '<div class="mono" style="font-size:11.5px;color:var(--faint);">Eugen ID ' + esc(r.uid) + '</div></div>'
     + '<div style="font-size:12.5px;color:var(--sub);margin-bottom:16px;">Based on the current filter base: '

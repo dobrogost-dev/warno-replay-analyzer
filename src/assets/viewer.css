@@ -84,6 +84,7 @@ button { cursor: pointer; }
 .dot { display:inline-block; width:7px; height:7px; border-radius:2px; flex:none; background:var(--faint2); }
 .dot.NATO { background:var(--accent); } .dot.PACT { background:var(--pact); }
 .emb { object-fit:contain; flex:none; vertical-align:middle; }
+.ava { object-fit:cover; flex:none; border-radius:3px; vertical-align:middle; background:var(--chip-bg); }
 /* division picker -- expands inline so the sticky sidebar never clips it */
 .picker { position:relative; }
 .picker-btn { display:flex; align-items:center; gap:6px; width:100%; text-align:left;
