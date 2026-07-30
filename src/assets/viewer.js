@@ -77,7 +77,7 @@ function freshFilters() {
     results: { win: true, loss: true, draw: true, aborted: false, none: false },
     minDur: 10, divA: [], divB: [], plA: [], plB: [], map: '', from: '', to: '',
     sizes: { 1: true, 2: true, 3: true, 4: true },
-    oppElo: null            /* [min, max]; null = whole range */
+    minOppElo: null         /* lowest opponent ELO to keep; null = off */
   };
 }
 
@@ -219,10 +219,13 @@ function passes(m, f) {
   if (!f.sizes[Math.min(4, m.teamSize || 1)]) return false;
   if (!f.results[outcome(m, me(m))]) return false;
   if (f.minDur > 0 && m.result.duration != null && m.result.duration < f.minDur * 60) return false;
-  /* Opponent ELO only means something on the ladder, so leave other types alone. */
-  if (f.oppElo && m.type === 'ranked') {
+  /* Opponent ELO only means anything on the ladder, and a match whose opponent
+     rating we never learned cannot clear a minimum -- so once this is set, both
+     conditions have to hold. */
+  if (f.minOppElo != null) {
+    if (m.type !== 'ranked') return false;
     var oe = opponentElo(m, me(m));
-    if (oe != null && (oe < f.oppElo[0] || oe > f.oppElo[1])) return false;
+    if (oe == null || oe < f.minOppElo) return false;
   }
   if (f.q) {
     var q = f.q.toLowerCase();
@@ -403,18 +406,20 @@ function buildSidebar() {
 
   section([
     el('div', { style: 'display:flex;justify-content:space-between;' }, [
-      el('div', { class: 'lbl' }, ['Opponent ELO']),
+      el('div', { class: 'lbl' }, ['Min opponent ELO']),
       side.oppEloVal = el('div', { class: 'mono', style: 'font-size:11px;color:var(--accent);' }, ['off'])
     ]),
-    side.oppEloLo = el('input', {
+    side.oppElo = el('input', {
       type: 'range', min: ELO_RANGE[0], max: ELO_RANGE[1], step: '25', value: ELO_RANGE[0],
-      oninput: function () { onEloSlide(+this.value, null); }
+      oninput: function () {
+        var v = +this.value;
+        S.f.minOppElo = v <= ELO_RANGE[0] ? null : v;
+        S.page = 0;
+        syncEloSlider();
+        render();
+      }
     }),
-    side.oppEloHi = el('input', {
-      type: 'range', min: ELO_RANGE[0], max: ELO_RANGE[1], step: '25', value: ELO_RANGE[1],
-      oninput: function () { onEloSlide(null, +this.value); }
-    }),
-    el('div', { class: 'hint' }, ['Ranked matches only — other match types are left untouched'])
+    el('div', { class: 'hint' }, ['Once set, keeps only ranked matches with a known opponent ELO'])
   ]);
 
   side.divA = sideList('divA', 'TEAM A', 'division');
@@ -482,22 +487,10 @@ function buildSidebar() {
   return root;
 }
 
-/* Two plain sliders standing in for a range control; keep them from crossing. */
-function onEloSlide(lo, hi) {
-  var cur = S.f.oppElo || ELO_RANGE.slice();
-  if (lo != null) cur = [Math.min(lo, cur[1]), cur[1]];
-  if (hi != null) cur = [cur[0], Math.max(hi, cur[0])];
-  S.f.oppElo = (cur[0] <= ELO_RANGE[0] && cur[1] >= ELO_RANGE[1]) ? null : cur;
-  S.page = 0;
-  syncEloSliders();
-  render();
-}
-
-function syncEloSliders() {
-  var r = S.f.oppElo || ELO_RANGE;
-  side.oppEloLo.value = r[0];
-  side.oppEloHi.value = r[1];
-  side.oppEloVal.textContent = S.f.oppElo ? (r[0] + ' – ' + r[1]) : 'off';
+function syncEloSlider() {
+  var v = S.f.minOppElo;
+  side.oppElo.value = v == null ? ELO_RANGE[0] : v;
+  side.oppEloVal.textContent = v == null ? 'off' : '≥ ' + v;
 }
 
 function fill(select, opts) {
@@ -647,7 +640,7 @@ function syncSidebar() {
   side.q.value = S.f.q;
   side.dur.value = S.f.minDur;
   side.durVal.textContent = S.f.minDur ? '≥ ' + S.f.minDur + ' min' : 'off';
-  syncEloSliders();
+  syncEloSlider();
   side.map.value = S.f.map;
   side.from.value = S.f.from;
   side.to.value = S.f.to;
@@ -685,9 +678,15 @@ function rowHtml(m) {
     if (d) { if (oppNames.indexOf(d.name) < 0) oppNames.push(d.name); if (!oppNames[1]) oppDiv = d; }
   });
   var oppLabel = oppNames.length > 1 ? oppNames[0] + ' +' + (oppNames.length - 1) : (oppNames[0] || '—');
-  var withElo = opps.filter(function (x) { return !x.ai && x.elo != null; });
-  var oppElo = withElo.length ? withElo.reduce(function (a, x) { return a + x.elo; }, 0) / withElo.length : null;
-  var showElo = p && p.elo != null && oppElo != null;
+  var oppElo = opponentElo(m, p);
+  /* show whichever side we know; blanking the cell because the other half is
+     missing made filtered rows look like they had no rating at all */
+  var eloCell = '';
+  if (p && (p.elo != null || oppElo != null)) {
+    eloCell = (p.elo != null ? Math.round(p.elo) : '—')
+      + ' <span style="color:var(--faint2);font-size:10px;">vs</span> '
+      + '<span style="color:var(--sub);">' + (oppElo != null ? Math.round(oppElo) : '—') + '</span>';
+  }
   var open = S.expanded === m.id;
 
   var h = '<div class="rowbox' + (open ? ' open' : '') + '">'
@@ -703,10 +702,7 @@ function rowHtml(m) {
     + (out === 'none' ? 'not in match' : m.result.present ? (MAGNITUDE[m.result.victoryRaw] || '') : 'no result')
     + '</span></div>'
     + '<div class="r mono" style="font-size:12px;color:var(--sub);">' + fmtDur(m.result.duration) + '</div>'
-    + '<div class="r mono" style="font-size:12px;">'
-    + (showElo ? Math.round(p.elo) + ' <span style="color:var(--faint2);font-size:10px;">vs</span> '
-        + '<span style="color:var(--sub);">' + Math.round(oppElo) + '</span>' : '')
-    + '</div></div>';
+    + '<div class="r mono" style="font-size:12px;">' + eloCell + '</div></div>';
   if (open) h += detailHtml(m);
   return h + '</div>';
 }

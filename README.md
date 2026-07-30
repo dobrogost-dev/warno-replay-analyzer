@@ -100,9 +100,10 @@ zestawienie graczy A vs B, typ meczu, wynik, minimalny czas, **ELO przeciwnika**
 dywizje A vs B, mapa, rozmiar, zakres dat. Strony A/B są zamienne — nie musisz
 zgadywać, po której stronie ktoś grał.
 
-Suwak ELO przeciwnika działa **wyłącznie na meczach rankingowych** — pozostałe
-typy przechodzą przez niego nietknięte, bo poza ladderem ELO przeciwnika nic nie
-znaczy. Chcesz zobaczyć same rankingowe? Odznacz „Casual multiplayer".
+Suwak **Min opponent ELO** ustawia dolny próg („od tego ELO w górę"). Gdy jest
+włączony, w wynikach zostają wyłącznie mecze **rankingowe** o **znanym** ELO
+przeciwnika — mecz, którego ratingu nie znamy, nie może spełnić progu, a poza
+ladderem ELO przeciwnika i tak nic nie znaczy. Zsunięty do lewej = wyłączony.
 
 **Zakładka gracza** (przycisk „Full report" u góry filtrów, albo „Report" przy
 dowolnym graczu) — statystyki liczone na aktualnie przefiltrowanej bazie:

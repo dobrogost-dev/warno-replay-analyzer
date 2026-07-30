@@ -21,7 +21,7 @@ import gamedata
 import replay
 import report
 
-VERSION = '1.4'
+VERSION = '1.5'
 REPORT_NAME = 'WARNO Replay Report.html'
 
 
@@ -313,4 +313,5 @@ def run():
 
 if __name__ == '__main__':
     sys.exit(run() or 0)
+
 
