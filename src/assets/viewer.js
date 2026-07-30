@@ -797,8 +797,10 @@ function playerHtml(m, x, i, p) {
     + (p && x.userId === p.userId ? '<span class="badge you">YOU</span>' : '')
     + (x.ai ? '<span class="badge ai">AI</span>' : '')
     + '<div style="flex:1;"></div>'
-    + '<div class="mono" style="font-size:11px;color:var(--faint);">'
+    + '<div class="mono" style="font-size:11px;color:var(--faint);"'
+    + ' title="Rating, ladder position and account level as they stood at the start of this match">'
     + (x.elo != null ? Math.round(x.elo) + ' ELO' : 'no ELO')
+    + (x.rank != null ? ', #' + x.rank : '')
     + (x.level != null ? ', lvl ' + x.level : '') + '</div></div>'
     + '<div class="prow" style="margin-top:6px;">' + badge(d, 30)
     + '<span style="font-size:12.5px;color:var(--sub);flex:1;">' + esc(d.name)
