@@ -105,6 +105,26 @@ var ELO_RANGE = (function () {
   if (lo == null) return [0, 0];
   return [Math.floor(lo / 50) * 50, Math.ceil(hi / 50) * 50];
 })();
+
+/* The slider rides this list by index, so the steps need not be even. 25 apart
+   throughout, plus one odd stop at 2137 that was asked for by name. */
+var ELO_ODD_STOP = 2137;
+var ELO_STOPS = (function () {
+  var stops = [];
+  for (var v = ELO_RANGE[0]; v <= ELO_RANGE[1]; v += 25) {
+    stops.push(v);
+    if (v < ELO_ODD_STOP && v + 25 > ELO_ODD_STOP && ELO_ODD_STOP <= ELO_RANGE[1]) {
+      stops.push(ELO_ODD_STOP);
+    }
+  }
+  return stops;
+})();
+function eloStopIndex(value) {
+  var at = ELO_STOPS.indexOf(value);
+  if (at >= 0) return at;
+  for (var i = ELO_STOPS.length - 1; i >= 0; i--) if (ELO_STOPS[i] <= value) return i;
+  return 0;
+}
 var S = {
   f: freshFilters(), sort: { key: 'date', dir: -1 }, page: 0, pageSize: 50,
   expanded: null, openDecks: {}, tabs: [], active: 'matches', owner: null,
@@ -410,10 +430,10 @@ function buildSidebar() {
       side.oppEloVal = el('div', { class: 'mono', style: 'font-size:11px;color:var(--accent);' }, ['off'])
     ]),
     side.oppElo = el('input', {
-      type: 'range', min: ELO_RANGE[0], max: ELO_RANGE[1], step: '25', value: ELO_RANGE[0],
+      type: 'range', min: '0', max: String(ELO_STOPS.length - 1), step: '1', value: '0',
       oninput: function () {
-        var v = +this.value;
-        S.f.minOppElo = v <= ELO_RANGE[0] ? null : v;
+        var v = ELO_STOPS[+this.value];
+        S.f.minOppElo = (v == null || v <= ELO_RANGE[0]) ? null : v;
         S.page = 0;
         syncEloSlider();
         render();
@@ -489,7 +509,7 @@ function buildSidebar() {
 
 function syncEloSlider() {
   var v = S.f.minOppElo;
-  side.oppElo.value = v == null ? ELO_RANGE[0] : v;
+  side.oppElo.value = v == null ? 0 : eloStopIndex(v);
   side.oppEloVal.textContent = v == null ? 'off' : '≥ ' + v;
 }
 
