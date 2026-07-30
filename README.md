@@ -155,6 +155,10 @@ WARNO Replay Analyzer.exe [FOLDER ...] [opcje]
 Bez argumentów (np. po dwukliku) skanuje domyślny folder replejów i czeka na
 Enter przed zamknięciem okna.
 
+Na starcie miga winieta ASCII (0,2 s rysowania, 0,1 s pauzy, potem czyszczenie
+ekranu). Pomijana jest, gdy wyjście idzie do pliku lub potoku albo gdy konsola
+jest węższa niż 77 znaków — żeby nie zaśmiecać logów i nie łamać obrazka.
+
 ## Budowanie ze źródeł
 
 ```

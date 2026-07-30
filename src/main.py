@@ -20,8 +20,9 @@ import avatars
 import gamedata
 import replay
 import report
+import splash
 
-VERSION = '1.5'
+VERSION = '1.6'
 REPORT_NAME = 'WARNO Replay Report.html'
 
 
@@ -251,7 +252,9 @@ def main(argv=None):
     ap.add_argument('--refresh-avatars', action='store_true',
                     help='re-fetch avatars even if they are already cached')
     ap.add_argument('--version', action='version', version='WARNO Replay Analyzer ' + VERSION)
-    args = ap.parse_args(argv)
+    args = ap.parse_args(argv)   # --help / --version bail out before the splash
+
+    splash.show()
 
     print('WARNO Replay Analyzer %s' % VERSION)
     print('-' * 58)
@@ -313,5 +316,6 @@ def run():
 
 if __name__ == '__main__':
     sys.exit(run() or 0)
+
 
 
