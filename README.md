@@ -125,8 +125,15 @@ a pod każdym graczem pełna talia pogrupowana jak w armory, z weterancją
 
 Filtry po lewej: perspektywa (czyj wynik liczymy), szukanie gracza, konkretne
 zestawienie graczy A vs B, typ meczu, wynik, minimalny czas, **ELO przeciwnika**,
-dywizje A vs B, mapa, rozmiar, zakres dat. Strony A/B są zamienne — nie musisz
-zgadywać, po której stronie ktoś grał.
+dywizje po stronach, mapa, rozmiar, zakres dat.
+
+Dwa filtry po stronach działają inaczej i to celowo. **Gracze A vs B** są
+zamienni — nie musisz zgadywać, kto z kim grał. **Dywizje** są przypisane do
+perspektywy: „YOUR SIDE" to drużyna gracza, z którego punktu widzenia liczymy
+wynik, „OPPONENTS" to przeciwna strona. Dzięki temu „grałem MNAD" i „trafiłem
+na MNAD" to dwa różne zapytania. Mecze bez gracza perspektywy wypadają, gdy
+którakolwiek z list dywizji jest wypełniona — nie ma wtedy czego przypisać do
+której strony.
 
 Suwak **Max opponent ELO** ustawia górny próg — zostają mecze, w których
 przeciwnik był **poniżej** tej wartości. Zsunięty maksymalnie w prawo =

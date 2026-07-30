@@ -234,6 +234,23 @@ function outcome(m, p) {
   if (m.result.winnerAlliance === 'draw') return 'draw';
   return p.alliance === m.result.winnerAlliance ? 'win' : 'loss';
 }
+/* Fixed sides, read from the perspective player: the first list has to sit on
+   their team and the second on the other one. A match they were not in cannot
+   be judged, so it drops out once either list is filled. */
+function perspectiveSides(m, listA, listB, keyOf) {
+  if (!listA.length && !listB.length) return true;
+  var p = me(m);
+  if (!p) return false;
+  var mine = {}, theirs = {};
+  m.players.forEach(function (x) {
+    var k = keyOf(x);
+    if (k == null) return;
+    (x.alliance === p.alliance ? mine : theirs)[k] = true;
+  });
+  return listA.every(function (v) { return mine[v]; })
+    && listB.every(function (v) { return theirs[v]; });
+}
+
 /* Team A vs team B, either way round: every listed key must sit on one side. */
 function sidesMatch(m, listA, listB, keyOf) {
   if (!listA.length && !listB.length) return true;
@@ -273,7 +290,7 @@ function passes(m, f) {
     });
     if (!hit) return false;
   }
-  if (!sidesMatch(m, f.divA, f.divB, function (p) {
+  if (!perspectiveSides(m, f.divA, f.divB, function (p) {
     return p.deck && p.deck.divisionId != null ? String(p.deck.divisionId) : null;
   })) return false;
   if (!sidesMatch(m, f.plA, f.plB, function (p) { return p.userId || null; })) return false;
@@ -475,15 +492,16 @@ function buildSidebar() {
     el('div', { class: 'hint' }, ['Ranked matches below this rating, and only where the opponent ELO is known'])
   ]);
 
-  side.divA = sideList('divA', 'TEAM A', 'division');
-  side.divB = sideList('divB', 'TEAM B', 'division');
+  side.divA = sideList('divA', 'YOUR SIDE', 'division');
+  side.divB = sideList('divB', 'OPPONENTS', 'division');
   section([
     el('div', { style: 'display:flex;align-items:baseline;justify-content:space-between;margin-bottom:5px;' }, [
       el('div', { class: 'lbl', style: 'margin:0;' }, ['Divisions in match']),
-      el('div', { class: 'hint' }, ['sides interchangeable'])
+      el('div', { class: 'hint' }, ['sides fixed'])
     ]),
     side.divA.node, side.divB.node,
-    el('div', { class: 'hint' }, ['All listed divisions must be present on their side.'])
+    el('div', { class: 'hint' }, ['Sides are read from the perspective player, '
+      + 'so matches without them drop out once either list is filled.'])
   ]);
 
   section([
