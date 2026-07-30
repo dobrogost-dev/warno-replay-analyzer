@@ -4,9 +4,16 @@ Jeden plik `.exe`. Uruchamiasz — sam znajduje Twoje repleje, analizuje wszystk
 buduje raport HTML i otwiera go w przeglądarce. Bez instalacji, bez Pythona,
 bez serwera, bez internetu.
 
-```
-dist\WARNO Replay Analyzer.exe
-```
+## Pobieranie
+
+Weź `WARNO Replay Analyzer.exe` z [zakładki Releases](https://github.com/dobrogost-dev/warno-replay-analyzer/releases/latest)
+i po prostu go uruchom. Nic nie instaluje i nic nie zapisuje w katalogu gry —
+raport ląduje obok `.exe`.
+
+Windows pokaże ostrzeżenie SmartScreen („Windows protected your PC"), bo plik
+nie jest podpisany certyfikatem. **Więcej informacji → Uruchom mimo to.**
+Jeśli wolisz nie ufać cudzemu binarium, zbuduj je sam — patrz *Budowanie ze
+źródeł* na dole.
 
 ## Co robi
 
@@ -130,6 +137,27 @@ python build.py                   # -> dist/WARNO Replay Analyzer.exe
 żadnych zależności poza biblioteką standardową.
 
 Można też uruchamiać bez budowania: `python src/main.py`.
+
+Oba narzędzia wymagają zainstalowanego WARNO, ale ich wyniki są w repo, więc
+samo `python build.py` wystarczy, żeby dostać działający `.exe` na maszynie bez
+gry. Tak właśnie buduje go CI.
+
+## Wydawanie nowej wersji
+
+```
+git tag v1.2
+git push origin v1.2
+```
+
+[Workflow](.github/workflows/release.yml) buduje `.exe` na Windows, robi test
+dymny na pustym katalogu i wystawia gotowy plik w Releases.
+
+## Licencja i prawa
+
+Kod na [MIT](LICENSE). Nazwy jednostek, dywizji i herby pochodzą z plików gry
+i należą do Eugen Systems — są tu dołączone tylko po to, żeby narzędzie
+podpisywało repleje także na komputerze bez zainstalowanego WARNO. Projekt nie
+jest powiązany z Eugen Systems ani przez nich firmowany.
 
 ## Struktura
 
