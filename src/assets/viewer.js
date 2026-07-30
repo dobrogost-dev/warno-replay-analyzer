@@ -72,7 +72,8 @@ function freshFilters() {
 }
 var S = {
   f: freshFilters(), sort: { key: 'date', dir: -1 }, page: 0, pageSize: 50,
-  expanded: null, openDecks: {}, tabs: [], active: 'matches', owner: null
+  expanded: null, openDecks: {}, tabs: [], active: 'matches', owner: null,
+  reportSort: {}          /* report table bucket -> {key, dir} */
 };
 
 /* Which of these players is "you"?  Best evidence first: a Steam account that
@@ -836,12 +837,15 @@ function buildReport(uid, name) {
     });
   });
 
-  function rows(bucket, limit) {
+  /* Full list for a bucket, ordered by that table's current sort. */
+  function rows(bucket) {
     var b = agg[bucket];
     if (!b) return [];
-    return b.order.map(function (k) { return b.rows[k]; })
-      .sort(function (a, b2) { return b2.g - a.g || a.name.localeCompare(b2.name); })
-      .slice(0, limit || 14);
+    var sort = S.reportSort[bucket] || { key: 'g', dir: -1 };
+    return b.order.map(function (k) { return b.rows[k]; }).sort(function (x, y) {
+      var c = compareRows(x, y, sort.key) * sort.dir;
+      return c || (y.g - x.g) || x.name.localeCompare(y.name);
+    });
   }
 
   var eloGames = base.filter(function (m) { return m.type === 'ranked' && his(m).elo != null; });
@@ -859,9 +863,34 @@ function buildReport(uid, name) {
   };
 }
 
-function tableHtml(title, sub, col, rows, span) {
+/* winrate as a fraction; null when nothing was decided, so it can sort last */
+function rowWr(r) { var d = r.w + r.l; return d ? r.w / d : null; }
+
+function compareRows(a, b, key) {
+  if (key === 'name') return a.name.localeCompare(b.name);
+  if (key === 'wl') return a.w - b.w;
+  if (key === 'wr') {
+    var x = rowWr(a), y = rowWr(b);
+    if (x == null && y == null) return 0;
+    if (x == null) return -1;          /* undecided rows sink either way */
+    if (y == null) return 1;
+    return x - y;
+  }
+  return a.g - b.g;
+}
+
+function tableHtml(bucket, title, sub, col, allRows, span, limit) {
+  limit = limit || 14;
+  var sort = S.reportSort[bucket] || { key: 'g', dir: -1 };
+  function head(key, label, cls) {
+    var on = sort.key === key;
+    return '<div class="' + (cls || '') + (on ? ' on' : '') + '" data-rsort="' + esc(bucket)
+      + '" data-rkey="' + key + '">' + label + (on ? (sort.dir === 1 ? ' ▲' : ' ▼') : '') + '</div>';
+  }
+  var rows = allRows.slice(0, limit);
   var h = '<div class="tbl" style="grid-column:span ' + span + ';"><h5>' + esc(title) + '</h5><div class="s">' + esc(sub) + '</div>'
-    + '<div class="trow h"><div>' + col + '</div><div class="num">GAMES</div><div class="num">W–L</div><div class="num">WR</div><div></div></div>';
+    + '<div class="trow h sortable">' + head('name', col) + head('g', 'GAMES', 'num')
+    + head('wl', 'W–L', 'num') + head('wr', 'WR', 'num') + '<div></div></div>';
   if (!rows.length) h += '<div class="hint" style="padding:6px 0;">No data in this base.</div>';
   rows.forEach(function (r) {
     var d = r.w + r.l, pct = d ? 100 * r.w / d : null;
@@ -874,6 +903,10 @@ function tableHtml(title, sub, col, rows, span) {
       + '<div class="bar-bg"><div style="width:' + (pct == null ? 0 : pct.toFixed(0)) + '%;background:'
       + (pct == null ? 'var(--line-strong)' : pct >= 50 ? 'var(--win)' : 'var(--loss)') + ';"></div></div></div>';
   });
+  if (allRows.length > rows.length) {
+    h += '<div class="hint" style="padding:6px 0 0;">showing ' + rows.length + ' of ' + allRows.length
+      + ' — sort a column to bring others to the top</div>';
+  }
   return h + '</div>';
 }
 
@@ -919,12 +952,12 @@ function reportHtml(uid, name) {
   }
 
   h += '<div class="tblgrid">'
-    + tableHtml('Winrate by own division', 'What this player picks, and how it goes', 'DIVISION', r.rows('my'), 2)
-    + tableHtml('Winrate vs enemy division', 'Each enemy division counted once per match', 'AGAINST', r.rows('vs'), 2)
-    + tableHtml('Winrate by map', 'All match types in base', 'MAP', r.rows('map'), 2)
-    + tableHtml('Winrate with', 'Games sharing a team with this player', 'TEAMMATE', r.rows('with'), 2)
-    + tableHtml('Winrate against', 'Games on the opposing team', 'OPPONENT', r.rows('vsPlayer'), 2)
-    + tableHtml('Most-picked units', 'Decks containing the unit, at any veterancy', 'UNIT', r.rows('units', 20), 2)
+    + tableHtml('my', 'Winrate by own division', 'What this player picks, and how it goes', 'DIVISION', r.rows('my'), 2)
+    + tableHtml('vs', 'Winrate vs enemy division', 'Each enemy division counted once per match', 'AGAINST', r.rows('vs'), 2)
+    + tableHtml('map', 'Winrate by map', 'All match types in base', 'MAP', r.rows('map'), 2)
+    + tableHtml('with', 'Winrate with', 'Games sharing a team with this player', 'TEAMMATE', r.rows('with'), 2)
+    + tableHtml('vsPlayer', 'Winrate against', 'Games on the opposing team', 'OPPONENT', r.rows('vsPlayer'), 2)
+    + tableHtml('units', 'Most-picked units', 'Decks containing the unit, at any veterancy', 'UNIT', r.rows('units'), 2, 20)
     + '</div></div>';
   return h;
 }
@@ -1020,6 +1053,12 @@ function boot() {
       return render();
     }
     if ((node = t.closest('[data-page]'))) { S.page = +node.getAttribute('data-page'); S.expanded = null; return render(); }
+    if ((node = t.closest('[data-rsort]'))) {
+      var bucket = node.getAttribute('data-rsort'), rkey = node.getAttribute('data-rkey');
+      var cur = S.reportSort[bucket] || { key: 'g', dir: -1 };
+      S.reportSort[bucket] = { key: rkey, dir: cur.key === rkey ? -cur.dir : (rkey === 'name' ? 1 : -1) };
+      return render();
+    }
     if ((node = t.closest('[data-copy]'))) {
       ev.stopPropagation();
       var code = node.getAttribute('data-copy');

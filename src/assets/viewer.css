@@ -208,6 +208,9 @@ button { cursor: pointer; }
 .trow { display:grid; grid-template-columns:minmax(110px,1fr) 44px 56px 46px minmax(56px,90px);
         gap:8px; align-items:center; font-size:12px; padding:5px 0; border-bottom:1px solid var(--line2); }
 .trow.h { font-size:10px; font-weight:600; letter-spacing:.06em; color:var(--faint2); padding-bottom:5px; }
+.trow.h.sortable > div[data-rsort] { cursor:pointer; user-select:none; white-space:nowrap; }
+.trow.h.sortable > div[data-rsort]:hover { color:var(--ink); }
+.trow.h.sortable > div.on { color:var(--sub); }
 .trow .num { text-align:right; font-family:var(--mono); font-size:11.5px; color:var(--sub); }
 .trow .nm { display:flex; align-items:center; gap:6px; overflow:hidden; }
 .trow .nm span:last-child { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
