@@ -51,6 +51,11 @@ function unit(id) {
     cat: (u && u.category) || 'other', country: (u && u.country) || ''
   };
 }
+/* Rows are keyed by this, not by the session id: WARNO gives every match in a
+   lobby the same UniqueSessionId, so three games in a row would share a key and
+   expand together. */
+function matchKey(m) { return m.key != null ? m.key : m.id; }
+
 function dot(alliance) { return '<span class="dot ' + esc(alliance || '') + '"></span>'; }
 /* Steam avatar, when --avatars was used and the profile resolved. */
 function face(steamId, size) {
@@ -713,10 +718,10 @@ function rowHtml(m) {
       + ' <span style="color:var(--faint2);font-size:10px;">vs</span> '
       + '<span style="color:var(--sub);">' + (oppElo != null ? Math.round(oppElo) : '—') + '</span>';
   }
-  var open = S.expanded === m.id;
+  var open = S.expanded === matchKey(m);
 
   var h = '<div class="rowbox' + (open ? ' open' : '') + '">'
-    + '<div class="grid row" data-match="' + esc(m.id) + '">'
+    + '<div class="grid row" data-match="' + esc(matchKey(m)) + '">'
     + '<div><div style="font-size:12.5px;">' + fmtDate(m.date) + '</div><div class="sub mono">' + fmtTime(m.date) + '</div></div>'
     + '<div><span class="tag ' + m.type + '">' + { ranked: 'Ranked', casual: 'Casual', vs_ai: 'vs AI' }[m.type] + '</span></div>'
     + '<div class="ell" title="' + esc(m.map.raw) + '">' + esc(m.map.name) + '</div>'
@@ -754,11 +759,12 @@ function detailHtml(m) {
   alliances.sort(function (a, b) { return a - b; });
   if (p) alliances.sort(function (a, b) { return (a === p.alliance ? -1 : 0) - (b === p.alliance ? -1 : 0); });
 
-  var allOpen = m.players.every(function (_, i) { return S.openDecks[m.id + ':' + i]; });
+  var mk = matchKey(m);
+  var allOpen = m.players.every(function (_, i) { return S.openDecks[mk + ':' + i]; });
 
   var h = '<div class="detail"><div class="metaline">'
     + '<div class="mono" style="font-size:11px;color:var(--faint);flex:1;">' + esc(bits.join(' | ')) + '</div>'
-    + '<button class="mini" data-alldecks="' + esc(m.id) + '">' + (allOpen ? 'Hide all decks' : 'Show all decks') + '</button>'
+    + '<button class="mini" data-alldecks="' + esc(mk) + '">' + (allOpen ? 'Hide all decks' : 'Show all decks') + '</button>'
     + '</div><div class="teams">';
 
   alliances.forEach(function (al) {
@@ -775,7 +781,7 @@ function detailHtml(m) {
 }
 
 function playerHtml(m, x, i, p) {
-  var key = m.id + ':' + i, open = !!S.openDecks[key];
+  var key = matchKey(m) + ':' + i, open = !!S.openDecks[key];
   var d = x.deck ? division(x.deck.divisionId)
                  : { name: 'No deck', alliance: '', country: '', type: '', emblem: '' };
   var h = '<div class="pcard"><div class="prow">'
@@ -1362,7 +1368,7 @@ function boot() {
     if ((node = t.closest('[data-alldecks]'))) {
       ev.stopPropagation();
       var mid = node.getAttribute('data-alldecks');
-      var match = M.filter(function (m) { return m.id === mid; })[0];
+      var match = M.filter(function (m) { return matchKey(m) === mid; })[0];
       var all = match.players.every(function (_, i) { return S.openDecks[mid + ':' + i]; });
       match.players.forEach(function (_, i) { S.openDecks[mid + ':' + i] = !all; });
       return render();

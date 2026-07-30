@@ -9,7 +9,6 @@ the viewer only when the opponent-ELO filter lands on 2137.
 """
 import base64
 import os
-import sys
 
 SPECIAL = 'papiezpedal'
 MIME = {

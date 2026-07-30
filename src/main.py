@@ -174,6 +174,12 @@ def build(folders, names, want_avatars=False, refresh_avatars=False,
         unique.append(m)
     unique.sort(key=lambda m: m['date'], reverse=True)
 
+    # UniqueSessionId belongs to the lobby, not the match: play three games
+    # without leaving and all three replays carry the same one. The viewer keys
+    # rows and deck toggles off this, so hand it something actually unique.
+    for i, m in enumerate(unique):
+        m['key'] = str(i)
+
     # keep only the ids these replays actually reference
     div_ids, unit_ids = set(), set()
     for m in unique:

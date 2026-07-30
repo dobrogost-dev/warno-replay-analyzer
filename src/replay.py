@@ -169,17 +169,38 @@ def _timestamp(path):
 
 # ---------------------------------------------------------------- replay file
 
+ENDS_BYTES = 65536
+
+
+def _read_ends(path):
+    """The two chunks that matter: the JSON header sits at the very front and
+    the result block at the very back, with megabytes of command stream in
+    between that we never look at."""
+    size = os.path.getsize(path)
+    with open(path, 'rb') as f:
+        if size <= 2 * ENDS_BYTES:
+            whole = f.read()
+            return whole, whole
+        head = f.read(ENDS_BYTES)
+        f.seek(size - ENDS_BYTES)
+        return head, f.read()
+
+
 def parse(path, owner_ids=()):
     """Read one replay. `owner_ids` are SteamID64s that may own this file --
     the Steam Cloud folder it came from first, then any account on this PC."""
-    with open(path, 'rb') as f:
-        data = f.read()
+    head, tail = _read_ends(path)
 
-    header = find_json(data, b'{"game"')
+    header = find_json(head, b'{"game"')
+    if not header or 'game' not in header:
+        # a lobby big enough to push the header past the chunk: pay for it once
+        with open(path, 'rb') as f:
+            head = tail = f.read()
+        header = find_json(head, b'{"game"')
     if not header or 'game' not in header:
         raise ReplayError('no game header found (not a WARNO replay?)')
     game = header['game']
-    result = find_json(data[-65536:], b'{"result"', from_end=True)
+    result = find_json(tail, b'{"result"', from_end=True)
 
     players = []
     for key in sorted((k for k in header if k.startswith('player')),
