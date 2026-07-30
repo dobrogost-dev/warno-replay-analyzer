@@ -1,5 +1,6 @@
 build/
 dist/
+music/
 __pycache__/
 *.pyc
 WARNO Replay Report.html
