@@ -6,7 +6,7 @@ bez serwera, bez internetu.
 
 ## Pobieranie
 
-Weź `WARNO Replay Analyzer.exe` z [zakładki Releases](https://github.com/dobrogost-dev/warno-replay-analyzer/releases/latest)
+Weź `WAŁKOWANIE DELUXE.exe` z [zakładki Releases](https://github.com/dobrogost-dev/warno-replay-analyzer/releases/latest)
 i po prostu go uruchom. Nic nie instaluje i nic nie zapisuje w katalogu gry —
 raport ląduje obok `.exe`.
 
@@ -128,10 +128,11 @@ zestawienie graczy A vs B, typ meczu, wynik, minimalny czas, **ELO przeciwnika**
 dywizje A vs B, mapa, rozmiar, zakres dat. Strony A/B są zamienne — nie musisz
 zgadywać, po której stronie ktoś grał.
 
-Suwak **Min opponent ELO** ustawia dolny próg („od tego ELO w górę"). Gdy jest
-włączony, w wynikach zostają wyłącznie mecze **rankingowe** o **znanym** ELO
-przeciwnika — mecz, którego ratingu nie znamy, nie może spełnić progu, a poza
-ladderem ELO przeciwnika i tak nic nie znaczy. Zsunięty do lewej = wyłączony.
+Suwak **Max opponent ELO** ustawia górny próg — zostają mecze, w których
+przeciwnik był **poniżej** tej wartości. Zsunięty maksymalnie w prawo =
+wyłączony; im bardziej w lewo, tym słabsi przeciwnicy. Filtr obejmuje wyłącznie
+mecze **rankingowe** o **znanym** ELO przeciwnika: meczu bez ratingu nie da się
+podpiąć pod próg, a poza ladderem ELO przeciwnika i tak nic nie znaczy.
 
 **Zakładka gracza** (przycisk „Full report" u góry filtrów, albo „Report" przy
 dowolnym graczu) — statystyki liczone na aktualnie przefiltrowanej bazie:
@@ -146,6 +147,23 @@ najczęściej branych jednostek: tam pokazywane jest 25 pozycji z kilkuset.
 Perspektywa („kim jesteś") jest ustalana po koncie Steam zalogowanym na tym
 komputerze, a gdy się nie da — po tym, kto zapisał najwięcej replejów. Możesz ją
 zmienić w panelu filtrów.
+
+## Muzyka
+
+Jeśli obok programu (albo w repo przy budowaniu) leży folder `music/`, jego
+zawartość trafia do raportu i gra w tle. Utwory losują się w kółko; sterowanie
+głośnością, wyciszenie i pauza są w prawym górnym rogu i pamiętają ustawienia
+między uruchomieniami.
+
+Jeden plik jest wyjęty z rotacji: `papiezpedal` odpala się wyłącznie wtedy, gdy
+suwak ELO przeciwnika stanie na 2137 — po dwóch sekundach zwłoki, w pętli, aż
+do przesunięcia suwaka gdzie indziej.
+
+Folder obok programu ma pierwszeństwo nad kopią wbudowaną w `.exe`, więc
+playlistę można podmienić bez przebudowywania. Dźwięk jest wklejany w raport,
+co dokłada mniej więcej tyle megabajtów, ile ważą pliki — `--no-music` daje
+wersję bez niego. Przeglądarki nie puszczą dźwięku, dopóki nie klikniesz
+czegokolwiek na stronie; to ograniczenie przeglądarek, nie programu.
 
 ## Awatary Steam
 
@@ -169,11 +187,12 @@ profilowe wszystkich graczy. `--no-avatars` daje raport bez nich.
 ## Wiersz poleceń
 
 ```
-WARNO Replay Analyzer.exe [FOLDER ...] [opcje]
+WAŁKOWANIE DELUXE.exe [FOLDER ...] [opcje]
 
   -o, --out KATALOG   gdzie zapisać raport (domyślnie obok .exe)
   --json              zapisz też data.json
   --no-open           nie otwieraj przeglądarki
+  --no-music          zbuduj raport bez ścieżki dźwiękowej
   --no-avatars        nie pobieraj awatarów Steam (jedyny krok używający sieci)
   --refresh-avatars   pobierz awatary ponownie, z pominięciem cache
   --game-dir ŚCIEŻKA  folder instalacji WARNO, jeśli nie został wykryty
@@ -193,7 +212,7 @@ jest węższa niż 77 znaków — żeby nie zaśmiecać logów i nie łamać obr
 pip install pyinstaller zstandard
 python tools/make_snapshot.py     # odświeża snapshot nazw (wymaga WARNO)
 python tools/extract_emblems.py   # odświeża herby (wymaga WARNO)
-python build.py                   # -> dist/WARNO Replay Analyzer.exe
+python build.py                   # -> dist/WAŁKOWANIE DELUXE.exe
 ```
 
 `zstandard` jest potrzebny wyłącznie przy wyciąganiu herbów — samo `.exe` nie ma

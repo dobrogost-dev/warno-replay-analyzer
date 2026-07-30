@@ -23,7 +23,7 @@ import replay
 import report
 import splash
 
-VERSION = '2.3'
+VERSION = '2.4'
 REPORT_NAME = 'WARNO Replay Report.html'
 
 

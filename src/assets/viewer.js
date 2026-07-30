@@ -77,7 +77,7 @@ function freshFilters() {
     results: { win: true, loss: true, draw: true, aborted: false, none: false },
     minDur: 10, divA: [], divB: [], plA: [], plB: [], map: '', from: '', to: '',
     sizes: { 1: true, 2: true, 3: true, 4: true },
-    minOppElo: null         /* lowest opponent ELO to keep; null = off */
+    maxOppElo: null         /* keep opponents weaker than this; null = off */
   };
 }
 
@@ -240,12 +240,12 @@ function passes(m, f) {
   if (!f.results[outcome(m, me(m))]) return false;
   if (f.minDur > 0 && m.result.duration != null && m.result.duration < f.minDur * 60) return false;
   /* Opponent ELO only means anything on the ladder, and a match whose opponent
-     rating we never learned cannot clear a minimum -- so once this is set, both
-     conditions have to hold. */
-  if (f.minOppElo != null) {
+     rating we never learned cannot sit under a ceiling -- so once this is set,
+     both conditions have to hold. */
+  if (f.maxOppElo != null) {
     if (m.type !== 'ranked') return false;
     var oe = opponentElo(m, me(m));
-    if (oe == null || oe < f.minOppElo) return false;
+    if (oe == null || oe >= f.maxOppElo) return false;
   }
   if (f.q) {
     var q = f.q.toLowerCase();
@@ -426,17 +426,18 @@ function buildSidebar() {
 
   section([
     el('div', { style: 'display:flex;justify-content:space-between;' }, [
-      el('div', { class: 'lbl' }, ['Min opponent ELO']),
+      el('div', { class: 'lbl' }, ['Max opponent ELO']),
       side.oppEloVal = el('div', { class: 'mono', style: 'font-size:11px;color:var(--accent);' }, ['off'])
     ]),
     side.oppElo = el('input', {
-      type: 'range', min: '0', max: String(ELO_STOPS.length - 1), step: '1', value: '0',
+      type: 'range', min: '0', max: String(ELO_STOPS.length - 1), step: '1',
+      value: String(ELO_STOPS.length - 1),
       oninput: function () {
-        var v = ELO_STOPS[+this.value];
-        S.f.minOppElo = (v == null || v <= ELO_RANGE[0]) ? null : v;
+        var i = +this.value, v = ELO_STOPS[i];
+        S.f.maxOppElo = (v == null || i >= ELO_STOPS.length - 1) ? null : v;
         S.page = 0;
         if (MUSIC) {
-          if (S.f.minOppElo === ELO_ODD_STOP) MUSIC.playSpecial(10);
+          if (v === ELO_ODD_STOP) MUSIC.playSpecial();
           else MUSIC.cancelSpecial();
           syncAudioControl();
         }
@@ -444,7 +445,7 @@ function buildSidebar() {
         render();
       }
     }),
-    el('div', { class: 'hint' }, ['Once set, keeps only ranked matches with a known opponent ELO'])
+    el('div', { class: 'hint' }, ['Ranked matches below this rating, and only where the opponent ELO is known'])
   ]);
 
   side.divA = sideList('divA', 'TEAM A', 'division');
@@ -513,9 +514,9 @@ function buildSidebar() {
 }
 
 function syncEloSlider() {
-  var v = S.f.minOppElo;
-  side.oppElo.value = v == null ? 0 : eloStopIndex(v);
-  side.oppEloVal.textContent = v == null ? 'off' : '≥ ' + v;
+  var v = S.f.maxOppElo;
+  side.oppElo.value = v == null ? ELO_STOPS.length - 1 : eloStopIndex(v);
+  side.oppEloVal.textContent = v == null ? 'off' : '< ' + v;
 }
 
 function fill(select, opts) {
@@ -1072,6 +1073,7 @@ function reportHtml(uid, name) {
    only fires when the opponent-ELO filter lands on its magic number. Browsers
    refuse to start audio before the page has been interacted with, so the first
    click anywhere is what actually gets things going. */
+var SPECIAL_DELAY_MS = 2000;
 var MUSIC = (function () {
   var data = D.music || {};
   var tracks = data.tracks || [];
@@ -1118,10 +1120,11 @@ var MUSIC = (function () {
   }
   player.addEventListener('ended', next);
 
-  var oneShotTimer = null;
-  function stopOneShot() {
-    clearTimeout(oneShotTimer);
-    oneShotTimer = null;
+  var specialPending = null, specialOn = false;
+  function stopSpecial() {
+    clearTimeout(specialPending);
+    specialPending = null;
+    specialOn = false;
     oneShot.pause();
     try { oneShot.currentTime = 0; } catch (e) {}
     if (started && wantPlay) player.play().catch(function () {});
@@ -1137,7 +1140,7 @@ var MUSIC = (function () {
     get muted() { return stash.muted; },
     get playing() { return wantPlay; },
     nowPlaying: function () {
-      if (oneShotTimer) return special.name;
+      if (specialOn) return special.name;
       var i = at - 1;
       return (started && order.length && tracks[order[i]]) ? tracks[order[i]].name : '';
     },
@@ -1163,24 +1166,33 @@ var MUSIC = (function () {
       if (!wantPlay) {
         player.pause();
         oneShot.pause();
+      } else if (specialOn) {
+        oneShot.play().catch(function () {});
+      } else if (!started) {
+        this.begin();
       } else {
-        if (!started) this.begin();
-        else player.play().catch(function () {});
+        player.play().catch(function () {});
       }
       persist();
     },
-    /* the ELO slider calls this; the track runs for ten seconds, then the
-       shuffle picks back up where it was interrupted */
-    playSpecial: function (seconds) {
-      if (!special || oneShotTimer) return;
-      if (!started) { started = true; applyVolume(); }
-      player.pause();
-      oneShot.src = special.src;
-      applyVolume();
-      if (wantPlay) oneShot.play().catch(function () {});
-      oneShotTimer = setTimeout(stopOneShot, seconds * 1000);
+    /* The ELO slider calls this when it lands on the magic stop: a couple of
+       seconds of warning, then the track takes over and loops until the filter
+       moves somewhere else. */
+    playSpecial: function () {
+      if (!special || specialPending || specialOn) return;
+      specialPending = setTimeout(function () {
+        specialPending = null;
+        specialOn = true;
+        if (!started) { started = true; }
+        player.pause();
+        oneShot.loop = true;
+        oneShot.src = special.src;
+        applyVolume();
+        if (wantPlay) oneShot.play().catch(function () {});
+        syncAudioControl();
+      }, SPECIAL_DELAY_MS);
     },
-    cancelSpecial: function () { if (oneShotTimer) stopOneShot(); }
+    cancelSpecial: function () { if (specialPending || specialOn) stopSpecial(); }
   };
 })();
 

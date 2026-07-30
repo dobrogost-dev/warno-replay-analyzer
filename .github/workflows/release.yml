@@ -30,8 +30,10 @@ jobs:
 
       - name: Smoke test the executable
         run: |
+          $exe = (Get-ChildItem dist -Filter *.exe | Select-Object -First 1).FullName
+          Write-Host "built: $exe"
           New-Item -ItemType Directory -Force -Path smoke-in, smoke-out | Out-Null
-          & "./dist/WARNO Replay Analyzer.exe" smoke-in --out smoke-out --no-open
+          & "$exe" smoke-in --out smoke-out --no-open
           if (-not (Test-Path "smoke-out/WARNO Replay Report.html")) {
             throw "the executable did not produce a report"
           }
@@ -39,11 +41,13 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: WARNO-Replay-Analyzer
-          path: dist/WARNO Replay Analyzer.exe
+          name: warno-replay-analyzer
+          path: dist/*.exe
 
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$env:GITHUB_REF_NAME" "dist/WARNO Replay Analyzer.exe" --generate-notes
+        run: |
+          $exe = (Get-ChildItem dist -Filter *.exe | Select-Object -First 1).FullName
+          gh release create "$env:GITHUB_REF_NAME" "$exe" --generate-notes

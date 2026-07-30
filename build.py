@@ -13,7 +13,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, 'src')
-NAME = 'WARNO Replay Analyzer'
+NAME = 'WAŁKOWANIE DELUXE'
 
 
 def main():
