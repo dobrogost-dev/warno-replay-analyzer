@@ -5,8 +5,6 @@ import sys
 import time
 
 ART = """\
-**********#######################******************************************##
-*******#*################################*******************************#****
 *******###########################%%%%%%%%%%%##************************###***
 ******#########################*+=+++*****####%@#*********************###****
 *******###################*************######%%#%%##*****************##******
@@ -35,9 +33,7 @@ ART = """\
 #%%@@@@@@@@@@@@@@@@@@@%@@@@@@@@@@@%###%@@%##%%@@@@%%@@%%%@@@@@@@@@@@@@@@@#***
 %%@@@@@@@@@@@@@@@@@@@@@%@@@@@@@@@@@@%%%%%%%#**%@@@@%@@@@@@@@@@@@@@@@@@@@@@#**
 %@@@@@@@@@@@@@@@@@@@@@@%@@@@@@@@@@@@@@@%%%%%#**#@@@%@@@@@@@@@@@@@@@@@@@@@@@#*
-%@@@@@@@@@@@@@@@@@@@@@@@%@@@@@@@@@@@@@@@@@@%%##%@@@@#@@@@@@@@@@@@@@@@@@@@@@%#
-%@@@@@@@@@@@@@@@@@@@@@@@@%@@@@@@@@@@@@@@@@@@@@@@@@@@@%@@@@@@@@@@@@@@@@@@@@@@@
-%@@@@@@@@@@@@@@@@@@@@@@@@@%@@@@@@@@@@@@@@@@@@@@@@@@@@%@@@@@@@@@@@@@@@@@@@@@@@\
+%@@@@@@@@@@@@@@@@@@@@@@@%@@@@@@@@@@@@@@@@@@%%##%@@@@#@@@@@@@@@@@@@@@@@@@@@@%#\
 """
 
 PAINT_SECONDS = 0.2      # whole picture on screen within this
@@ -61,14 +57,52 @@ def _enable_ansi():
         return False
 
 
+def _clear_win32():
+    """Blank the whole screen buffer through the console API.
+
+    ESC[2J is not enough on Windows: conhost implements it by scrolling the
+    buffer, so the art is still sitting right above the new output. Overwriting
+    every cell is the only wipe that actually removes it.
+    """
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class CONSOLE_SCREEN_BUFFER_INFO(ctypes.Structure):
+            _fields_ = [('dwSize', wintypes._COORD),
+                        ('dwCursorPosition', wintypes._COORD),
+                        ('wAttributes', wintypes.WORD),
+                        ('srWindow', wintypes.SMALL_RECT),
+                        ('dwMaximumWindowSize', wintypes._COORD)]
+
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.GetStdHandle(-11)
+        info = CONSOLE_SCREEN_BUFFER_INFO()
+        if not kernel32.GetConsoleScreenBufferInfo(handle, ctypes.byref(info)):
+            return False
+
+        origin = wintypes._COORD(0, 0)
+        cells = info.dwSize.X * info.dwSize.Y
+        written = wintypes.DWORD()
+        kernel32.FillConsoleOutputCharacterW(handle, ctypes.c_wchar(' '), cells,
+                                             origin, ctypes.byref(written))
+        kernel32.FillConsoleOutputAttribute(handle, info.wAttributes, cells,
+                                            origin, ctypes.byref(written))
+        kernel32.SetConsoleCursorPosition(handle, origin)
+        return True
+    except Exception:
+        return False
+
+
 def clear(ansi):
+    if os.name == 'nt' and _clear_win32():
+        return
     if ansi:
-        sys.stdout.write('\033[2J\033[H')            # wipe, cursor home
+        # 3J drops the scrollback too, so nothing is left to scroll back up to
+        sys.stdout.write('\033[2J\033[3J\033[H')
         sys.stdout.flush()
-    elif os.name == 'nt':
-        os.system('cls')
-    else:
-        os.system('clear')
+        return
+    os.system('cls' if os.name == 'nt' else 'clear')
 
 
 def show(force=False):
