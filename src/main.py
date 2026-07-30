@@ -22,7 +22,7 @@ import replay
 import report
 import splash
 
-VERSION = '1.7'
+VERSION = '1.8'
 REPORT_NAME = 'WARNO Replay Report.html'
 
 
@@ -316,6 +316,7 @@ def run():
 
 if __name__ == '__main__':
     sys.exit(run() or 0)
+
 
 
 

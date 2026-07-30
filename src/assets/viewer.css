@@ -56,8 +56,8 @@ button { cursor: pointer; }
 .layout { display:grid; grid-template-columns:264px 1fr; gap:18px; align-items:start; padding:18px 24px; }
 .layout.full { grid-template-columns:1fr; }
 .card { background:var(--surface); border:1px solid var(--line); border-radius:6px; }
-.side { position:sticky; top:14px; display:flex; flex-direction:column; overflow:hidden;
-        max-height:calc(100vh - 28px); overflow-y:auto; }
+/* full natural height -- no inner scrollbar, it just moves with the page */
+.side { display:flex; flex-direction:column; overflow:hidden; }
 .sec { padding:11px 14px; border-top:1px solid var(--line2); }
 .sec:first-child { border-top:0; }
 .lbl { font-size:11px; font-weight:600; color:var(--sub); margin-bottom:5px; }
@@ -154,7 +154,7 @@ button { cursor: pointer; }
 .detail { padding:14px 16px 18px; background:var(--surface2); border-top:1px solid var(--line2); }
 .detail .metaline { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:12px; }
 .teams { display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
-@media (max-width:1100px) { .teams { grid-template-columns:1fr; } .layout { grid-template-columns:1fr; } .side { position:static; max-height:none; } }
+@media (max-width:1100px) { .teams { grid-template-columns:1fr; } .layout { grid-template-columns:1fr; } }
 .team h4 { margin:0 0 8px; font-size:11px; font-weight:700; letter-spacing:.06em; color:var(--sub);
            display:flex; align-items:center; gap:8px; }
 .badge { font-size:10px; font-weight:700; border-radius:3px; padding:1px 6px; border:1px solid; }
