@@ -24,6 +24,15 @@ def main():
     for stale in ('build', 'dist'):
         shutil.rmtree(os.path.join(HERE, stale), ignore_errors=True)
 
+    # the soundtrack is optional -- a checkout without it still builds
+    music = os.path.join(HERE, 'music')
+    extra = []
+    if os.path.isdir(music) and os.listdir(music):
+        extra = ['--add-data', music + os.pathsep + os.path.join('assets', 'music')]
+        print('bundling %d music file(s)' % len(os.listdir(music)))
+    else:
+        print('no music/ folder -- building without a soundtrack')
+
     cmd = [
         sys.executable, '-m', 'PyInstaller',
         '--onefile', '--console', '--clean', '--noconfirm',
@@ -33,6 +42,7 @@ def main():
         '--specpath', os.path.join(HERE, 'build'),
         '--paths', SRC,
         '--add-data', os.path.join(SRC, 'assets') + os.pathsep + 'assets',
+        *extra,
         # trim what nothing here imports -- but leave email/http/urllib alone,
         # avatar fetching goes through urllib.request and it pulls both in
         '--exclude-module', 'tkinter', '--exclude-module', 'unittest',

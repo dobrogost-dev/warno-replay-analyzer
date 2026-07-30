@@ -137,7 +137,7 @@ def parse_map(raw):
 
     out['name'] = CAMEL_RX.sub(' ', rest.replace('_', ' ')).strip()
     modes = [MODES[t] for t in tags if t in MODES]
-    out['mode'] = ' · '.join(modes) or None
+    out['mode'] = ' / '.join(modes) or None
     return out
 
 

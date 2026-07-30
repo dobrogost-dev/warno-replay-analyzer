@@ -18,11 +18,12 @@ from datetime import datetime, timezone
 
 import avatars
 import gamedata
+import music
 import replay
 import report
 import splash
 
-VERSION = '2.2'
+VERSION = '2.3'
 REPORT_NAME = 'WARNO Replay Report.html'
 
 
@@ -133,7 +134,8 @@ def open_in_browser(path):
         return webbrowser.open(url)
 
 
-def build(folders, names, want_avatars=False, refresh_avatars=False, log=print):
+def build(folders, names, want_avatars=False, refresh_avatars=False,
+          want_music=True, log=print):
     """Parse every replay under `folders` into the dataset the viewer reads."""
     files = replay.find_replays(folders)
     log('Found %d replay file%s' % (len(files), '' if len(files) == 1 else 's'))
@@ -220,6 +222,8 @@ def build(folders, names, want_avatars=False, refresh_avatars=False, log=print):
                     seen.append(p['steamId'])
         faces = avatars.load(seen, log=log, refresh=refresh_avatars)
 
+    tracks = music.load(app_dir(), report.asset_dir(), log=log) if want_music else {}
+
     return {
         'generatedAt': datetime.now(timezone.utc).isoformat(timespec='seconds'),
         'tool': 'warno-replay-analyzer/%s' % VERSION,
@@ -229,6 +233,7 @@ def build(folders, names, want_avatars=False, refresh_avatars=False, log=print):
         'units': units,
         'emblems': emblems,
         'avatars': faces,
+        'music': tracks,
         'matches': unique,
         'errors': errors,
         'localSteamIds': gamedata.local_steam_ids(),
@@ -247,6 +252,8 @@ def main(argv=None):
     ap.add_argument('--game-dir', help='WARNO install folder, if it is not auto-detected')
     ap.add_argument('--refresh-data', action='store_true',
                     help='re-read unit/division names from the game, ignoring the cache')
+    ap.add_argument('--no-music', action='store_true',
+                    help='leave the soundtrack out of the report')
     ap.add_argument('--no-avatars', action='store_true',
                     help='skip Steam avatars â€” this is the only step that uses the network')
     ap.add_argument('--refresh-avatars', action='store_true',
@@ -276,7 +283,7 @@ def main(argv=None):
     print('Unit/division names: %s' % how)
 
     dataset = build(folders, names, want_avatars=not args.no_avatars,
-                    refresh_avatars=args.refresh_avatars)
+                    refresh_avatars=args.refresh_avatars, want_music=not args.no_music)
     dataset['dataSource'] = how
 
     out_dir = args.out or app_dir()

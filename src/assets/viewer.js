@@ -338,7 +338,7 @@ function deckSummary(deck) {
   if (bucket[2]) parts.push(bucket[2] + ' veteran');
   if (bucket[1]) parts.push(bucket[1] + ' hardened');
   if (bucket[0]) parts.push(bucket[0] + ' trained');
-  return { total: cards.length, avg: (sum / cards.length).toFixed(2), summary: parts.join(' · ') };
+  return { total: cards.length, avg: (sum / cards.length).toFixed(2), summary: parts.join(', ') };
 }
 
 /* ------------------------------------------------------------------ sidebar */
@@ -435,6 +435,11 @@ function buildSidebar() {
         var v = ELO_STOPS[+this.value];
         S.f.minOppElo = (v == null || v <= ELO_RANGE[0]) ? null : v;
         S.page = 0;
+        if (MUSIC) {
+          if (S.f.minOppElo === ELO_ODD_STOP) MUSIC.playSpecial(10);
+          else MUSIC.cancelSpecial();
+          syncAudioControl();
+        }
         syncEloSlider();
         render();
       }
@@ -646,7 +651,7 @@ function syncTarget() {
   if (found) {
     side.target.innerHTML = '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Report: '
       + esc(found.name) + '</span><span style="color:var(--faint);font-size:12px;">→</span>';
-    side.qHint.textContent = found.n + ' matches in replays · opens in a new tab';
+    side.qHint.textContent = found.n + ' matches in replays, opens in a new tab';
   } else {
     side.qHint.textContent = 'Matches any player in the lobby';
   }
@@ -751,7 +756,7 @@ function detailHtml(m) {
   var allOpen = m.players.every(function (_, i) { return S.openDecks[m.id + ':' + i]; });
 
   var h = '<div class="detail"><div class="metaline">'
-    + '<div class="mono" style="font-size:11px;color:var(--faint);flex:1;">' + esc(bits.join(' · ')) + '</div>'
+    + '<div class="mono" style="font-size:11px;color:var(--faint);flex:1;">' + esc(bits.join(' | ')) + '</div>'
     + '<button class="mini" data-alldecks="' + esc(m.id) + '">' + (allOpen ? 'Hide all decks' : 'Show all decks') + '</button>'
     + '</div><div class="teams">';
 
@@ -780,11 +785,11 @@ function playerHtml(m, x, i, p) {
     + '<div style="flex:1;"></div>'
     + '<div class="mono" style="font-size:11px;color:var(--faint);">'
     + (x.elo != null ? Math.round(x.elo) + ' ELO' : 'no ELO')
-    + (x.level != null ? ' · lvl ' + x.level : '') + '</div></div>'
+    + (x.level != null ? ', lvl ' + x.level : '') + '</div></div>'
     + '<div class="prow" style="margin-top:6px;">' + badge(d, 30)
     + '<span style="font-size:12.5px;color:var(--sub);flex:1;">' + esc(d.name)
-    + (d.country ? ' <span class="sub">' + esc(d.country) + (d.type ? ' · ' + esc(d.type) : '') + '</span>' : '')
-    + (x.deck && x.deck.modded ? ' · modded' : '') + '</span>';
+    + (d.country ? ' <span class="sub">' + esc(d.country) + (d.type ? ', ' + esc(d.type) : '') + '</span>' : '')
+    + (x.deck && x.deck.modded ? ' (modded)' : '') + '</span>';
   if (x.deck) h += '<button class="mini" data-deck="' + esc(key) + '">' + (open ? 'Hide deck' : 'Deck ▾') + '</button>';
   if (!x.ai && x.userId) h += '<button class="mini grey" data-report="' + esc(x.userId) + '" data-name="' + esc(x.name) + '">Report</button>';
   h += '</div>';
@@ -794,9 +799,9 @@ function playerHtml(m, x, i, p) {
     h += '<div class="deck">';
     if (sum) {
       h += '<div class="decksum"><span class="mono" style="font-weight:600;color:var(--sub);">' + sum.total + '</span><span>cards</span>'
-        + '<span style="color:var(--line-strong);">·</span><span>avg vet</span>'
+        + '<span>avg vet</span>'
         + '<span class="mono" style="font-weight:600;color:var(--vet);">' + sum.avg + '</span>'
-        + '<span style="color:var(--line-strong);">·</span><span>' + esc(sum.summary) + '</span>'
+        + '<span>' + esc(sum.summary) + '</span>'
         + (x.deck.truncated ? '<span class="pill">TRUNCATED</span>' : '') + '</div>';
     } else {
       h += '<div class="decksum">Deck string could not be decoded.</div>';
@@ -835,8 +840,8 @@ function matchesHtml() {
     + '<span class="big">' + list.length + '</span>'
     + '<span style="font-size:13px;color:var(--sub);">/ ' + M.length + ' replays qualify</span></div>'
     + '<div style="font-size:11.5px;color:var(--faint);margin-top:2px;">'
-    + (M.length - list.length) + ' excluded by filters · ' + tally.aborted + ' aborted in base'
-    + (tally.none ? ' · ' + tally.none + ' without ' + esc(S.owner.name) : '') + '</div></div>'
+    + (M.length - list.length) + ' excluded by filters, ' + tally.aborted + ' aborted in base'
+    + (tally.none ? ', ' + tally.none + ' without ' + esc(S.owner.name) : '') + '</div></div>'
     + '<div class="vrule"></div>'
     + '<div><div class="eyebrow" style="margin-bottom:3px;">' + esc(S.owner.name.toUpperCase()) + ': W – L – D</div>'
     + '<div class="tally"><span class="win">' + tally.win + '</span><span class="sep">–</span>'
@@ -982,7 +987,7 @@ function tableHtml(bucket, title, sub, col, allRows, span, limit) {
   }
   var rows = limit ? allRows.slice(0, limit) : allRows;
   var h = '<div class="tbl" style="grid-column:span ' + span + ';"><h5>' + esc(title) + '</h5>'
-    + '<div class="s">' + esc(sub) + ' · ' + allRows.length + ' row' + (allRows.length === 1 ? '' : 's') + '</div>'
+    + '<div class="s">' + esc(sub) + ' (' + allRows.length + ' row' + (allRows.length === 1 ? '' : 's') + ')' + '</div>'
     + '<div class="trow h sortable">' + head('name', col) + head('g', 'GAMES', 'num')
     + head('wl', 'W–L', 'num') + head('wr', 'WR', 'num') + '<div></div></div>';
   if (!rows.length) h += '<div class="hint" style="padding:6px 0;">No data in this base.</div>';
@@ -1016,7 +1021,7 @@ function reportHtml(uid, name) {
     + '<div class="mono" style="font-size:11.5px;color:var(--faint);">Eugen ID ' + esc(r.uid) + '</div></div>'
     + '<div style="font-size:12.5px;color:var(--sub);margin-bottom:16px;">Based on the current filter base: '
     + '<span class="mono" style="font-weight:600;">' + r.games + '</span> matches with this player'
-    + ' · adjust filters on the Matches tab to change the base</div>';
+    + '. Adjust filters on the Matches tab to change the base</div>';
 
   var tiles = [
     ['GAMES IN BASE', String(r.games), r.tally.aborted + ' aborted excluded from WR', 'neutral'],
@@ -1059,6 +1064,157 @@ function reportHtml(uid, name) {
     + tableHtml('units', 'Most-picked units', 'Decks containing the unit, at any veterancy', 'UNIT', r.rows('units'), 2, 25)
     + '</div></div>';
   return h;
+}
+
+/* ------------------------------------------------------------------- music */
+
+/* Two players: one shuffles the soundtrack, one is reserved for the track that
+   only fires when the opponent-ELO filter lands on its magic number. Browsers
+   refuse to start audio before the page has been interacted with, so the first
+   click anywhere is what actually gets things going. */
+var MUSIC = (function () {
+  var data = D.music || {};
+  var tracks = data.tracks || [];
+  var special = data.special || null;
+  if (!tracks.length && !special) return null;
+
+  var order = [], at = 0, started = false, wantPlay = true;
+  var stash = { volume: 0.35, muted: false };
+  try {
+    var saved = JSON.parse(localStorage.getItem('warno-analyzer-audio') || '{}');
+    if (typeof saved.volume === 'number') stash.volume = saved.volume;
+    if (typeof saved.muted === 'boolean') stash.muted = saved.muted;
+    if (typeof saved.playing === 'boolean') wantPlay = saved.playing;
+  } catch (e) {}
+
+  var player = new Audio();
+  var oneShot = new Audio();
+  player.preload = oneShot.preload = 'auto';
+
+  function persist() {
+    try {
+      localStorage.setItem('warno-analyzer-audio',
+        JSON.stringify({ volume: stash.volume, muted: stash.muted, playing: wantPlay }));
+    } catch (e) {}
+  }
+  function applyVolume() {
+    player.volume = oneShot.volume = stash.volume;
+    player.muted = oneShot.muted = stash.muted;
+  }
+
+  function reshuffle() {
+    order = tracks.map(function (_, i) { return i; });
+    for (var i = order.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = order[i]; order[i] = order[j]; order[j] = t;
+    }
+    at = 0;
+  }
+  function next() {
+    if (!tracks.length) return;
+    if (at >= order.length) reshuffle();
+    player.src = tracks[order[at++]].src;
+    if (wantPlay) player.play().catch(function () {});
+  }
+  player.addEventListener('ended', next);
+
+  var oneShotTimer = null;
+  function stopOneShot() {
+    clearTimeout(oneShotTimer);
+    oneShotTimer = null;
+    oneShot.pause();
+    try { oneShot.currentTime = 0; } catch (e) {}
+    if (started && wantPlay) player.play().catch(function () {});
+    syncAudioControl();
+  }
+
+  reshuffle();
+
+  return {
+    tracks: tracks,
+    hasSpecial: !!special,
+    get volume() { return stash.volume; },
+    get muted() { return stash.muted; },
+    get playing() { return wantPlay; },
+    nowPlaying: function () {
+      if (oneShotTimer) return special.name;
+      var i = at - 1;
+      return (started && order.length && tracks[order[i]]) ? tracks[order[i]].name : '';
+    },
+    begin: function () {                 /* called from the first user gesture */
+      if (started) return;
+      started = true;
+      applyVolume();
+      next();
+    },
+    setVolume: function (v) {
+      stash.volume = Math.max(0, Math.min(1, v));
+      if (stash.volume > 0) stash.muted = false;
+      applyVolume();
+      persist();
+    },
+    toggleMute: function () {
+      stash.muted = !stash.muted;
+      applyVolume();
+      persist();
+    },
+    togglePlay: function () {
+      wantPlay = !wantPlay;
+      if (!wantPlay) {
+        player.pause();
+        oneShot.pause();
+      } else {
+        if (!started) this.begin();
+        else player.play().catch(function () {});
+      }
+      persist();
+    },
+    /* the ELO slider calls this; the track runs for ten seconds, then the
+       shuffle picks back up where it was interrupted */
+    playSpecial: function (seconds) {
+      if (!special || oneShotTimer) return;
+      if (!started) { started = true; applyVolume(); }
+      player.pause();
+      oneShot.src = special.src;
+      applyVolume();
+      if (wantPlay) oneShot.play().catch(function () {});
+      oneShotTimer = setTimeout(stopOneShot, seconds * 1000);
+    },
+    cancelSpecial: function () { if (oneShotTimer) stopOneShot(); }
+  };
+})();
+
+function buildAudioControl() {
+  if (!MUSIC) return null;
+  var box = el('div', { class: 'audio' });
+  var toggle = el('button', {
+    class: 'ghost audio-btn', title: 'Mute / unmute',
+    onclick: function () { MUSIC.toggleMute(); syncAudioControl(); }
+  });
+  var slider = el('input', {
+    type: 'range', min: '0', max: '100', step: '1', class: 'audio-vol',
+    title: 'Music volume',
+    oninput: function () { MUSIC.setVolume(+this.value / 100); syncAudioControl(); }
+  });
+  var play = el('button', {
+    class: 'ghost audio-btn', title: 'Pause / resume music',
+    onclick: function () { MUSIC.togglePlay(); syncAudioControl(); }
+  });
+  box.appendChild(play);
+  box.appendChild(toggle);
+  box.appendChild(slider);
+  audioNodes = { toggle: toggle, slider: slider, play: play };
+  return box;
+}
+
+var audioNodes = null;
+function syncAudioControl() {
+  if (!MUSIC || !audioNodes) return;
+  audioNodes.slider.value = Math.round(MUSIC.volume * 100);
+  audioNodes.toggle.textContent = MUSIC.muted || MUSIC.volume === 0 ? '🔇' : '🔊';
+  audioNodes.play.textContent = MUSIC.playing ? '⏸' : '▶';
+  var name = MUSIC.nowPlaying();
+  audioNodes.slider.title = name ? 'Music volume — ' + name : 'Music volume';
 }
 
 /* ------------------------------------------------------------------ render */
@@ -1115,10 +1271,10 @@ function boot() {
   setTheme(stored || 'dark');
 
   S.owner = detectOwner();
-  document.getElementById('src').textContent = (D.sourceDirs || []).join('  ·  ');
+  document.getElementById('src').textContent = (D.sourceDirs || []).join('   |   ');
   document.getElementById('src').title = 'Names: ' + (D.dataSource || 'unknown');
   document.getElementById('dataset').textContent =
-    M.length + ' replays · ' + (D.errors && D.errors.length ? D.errors.length + ' unreadable · ' : '')
+    M.length + ' replays, ' + (D.errors && D.errors.length ? D.errors.length + ' unreadable, ' : '')
     + 'generated ' + fmtDate(D.generatedAt);
 
   document.getElementById('side').appendChild(buildSidebar());
@@ -1128,6 +1284,22 @@ function boot() {
   document.getElementById('theme').addEventListener('click', function () {
     setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
   });
+
+  var control = buildAudioControl();
+  if (control) {
+    document.getElementById('theme').parentNode.insertBefore(control, document.getElementById('theme'));
+    syncAudioControl();
+    /* autoplay is blocked until the page has been interacted with */
+    var kick = function () {
+      MUSIC.begin();
+      syncAudioControl();
+      document.removeEventListener('pointerdown', kick);
+      document.removeEventListener('keydown', kick);
+    };
+    document.addEventListener('pointerdown', kick);
+    document.addEventListener('keydown', kick);
+    setInterval(syncAudioControl, 2000);
+  }
 
   document.addEventListener('keydown', function (ev) {
     if (ev.key === 'Escape') closePicker();
