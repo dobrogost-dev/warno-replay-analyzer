@@ -23,13 +23,16 @@ import os
 import re
 import zipfile
 
-SCHEMA = 4  # bump when the emitted structure changes so old caches are dropped
+SCHEMA = 5  # bump when the emitted structure changes so old caches are dropped
 
 BASE_ZIP = os.path.join('Mods', 'ModData', 'base.zip')
 UNITS_CSV = os.path.join('Mods', 'ExampleAssets', 'Localisation', 'UNITS.csv')
 Z_SERIALIZER = 'GameData/Generated/Gameplay/Decks/DeckSerializer.ndf'
 Z_DIVISIONS = 'GameData/Generated/Gameplay/Decks/Divisions.ndf'
 Z_UNITS = 'GameData/Generated/Gameplay/Gfx/UniteDescriptor.ndf'
+# FOBs are entities you put in a deck like any card, but the game files them as
+# buildings, so their names live here and not with the units.
+Z_BUILDINGS = 'GameData/Generated/Gameplay/Gfx/BuildingDescriptors.ndf'
 
 # ETypeStrategicDetailedCount -> the armory tab the viewer groups by
 CATEGORY = {
@@ -310,7 +313,8 @@ def extract(game_dir):
     with zipfile.ZipFile(os.path.join(game_dir, BASE_ZIP)) as z:
         serializer = z.read(Z_SERIALIZER).decode('utf-8', 'replace')
         div_defs = _divisions(z.read(Z_DIVISIONS).decode('utf-8', 'replace'), loc)
-        unit_defs = _units(z.read(Z_UNITS).decode('utf-8', 'replace'), loc)
+        unit_defs = _units(z.read(Z_BUILDINGS).decode('utf-8', 'replace'), loc)
+        unit_defs.update(_units(z.read(Z_UNITS).decode('utf-8', 'replace'), loc))
 
     div_ids, unit_ids = _serializer_ids(serializer)
 
