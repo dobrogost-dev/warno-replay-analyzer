@@ -1,4 +1,4 @@
-"""WARNO Replay Analyzer -- scan .rpl3 replays, build a report, open it.
+﻿"""WARNO Replay Analyzer -- scan .rpl3 replays, build a report, open it.
 
 Double-click the .exe and it finds your replay folder, reads every replay,
 resolves division and unit names from your WARNO install, writes a
@@ -21,7 +21,7 @@ import gamedata
 import replay
 import report
 
-VERSION = '1.3'
+VERSION = '1.4'
 REPORT_NAME = 'WARNO Replay Report.html'
 
 
@@ -246,8 +246,8 @@ def main(argv=None):
     ap.add_argument('--game-dir', help='WARNO install folder, if it is not auto-detected')
     ap.add_argument('--refresh-data', action='store_true',
                     help='re-read unit/division names from the game, ignoring the cache')
-    ap.add_argument('--avatars', action='store_true',
-                    help='fetch Steam avatar thumbnails (the only step that uses the network)')
+    ap.add_argument('--no-avatars', action='store_true',
+                    help='skip Steam avatars â€” this is the only step that uses the network')
     ap.add_argument('--refresh-avatars', action='store_true',
                     help='re-fetch avatars even if they are already cached')
     ap.add_argument('--version', action='version', version='WARNO Replay Analyzer ' + VERSION)
@@ -272,7 +272,7 @@ def main(argv=None):
                                refresh=args.refresh_data, log=print)
     print('Unit/division names: %s' % how)
 
-    dataset = build(folders, names, want_avatars=args.avatars or args.refresh_avatars,
+    dataset = build(folders, names, want_avatars=not args.no_avatars,
                     refresh_avatars=args.refresh_avatars)
     dataset['dataSource'] = how
 
@@ -313,3 +313,4 @@ def run():
 
 if __name__ == '__main__':
     sys.exit(run() or 0)
+

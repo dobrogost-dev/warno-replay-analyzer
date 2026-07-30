@@ -958,18 +958,19 @@ function compareRows(a, b, key) {
 }
 
 function tableHtml(bucket, title, sub, col, allRows, span, limit) {
-  limit = limit || 14;
   var sort = S.reportSort[bucket] || { key: 'g', dir: -1 };
   function head(key, label, cls) {
     var on = sort.key === key;
     return '<div class="' + (cls || '') + (on ? ' on' : '') + '" data-rsort="' + esc(bucket)
       + '" data-rkey="' + key + '">' + label + (on ? (sort.dir === 1 ? ' ▲' : ' ▼') : '') + '</div>';
   }
-  var rows = allRows.slice(0, limit);
-  var h = '<div class="tbl" style="grid-column:span ' + span + ';"><h5>' + esc(title) + '</h5><div class="s">' + esc(sub) + '</div>'
+  var rows = limit ? allRows.slice(0, limit) : allRows;
+  var h = '<div class="tbl" style="grid-column:span ' + span + ';"><h5>' + esc(title) + '</h5>'
+    + '<div class="s">' + esc(sub) + ' · ' + allRows.length + ' row' + (allRows.length === 1 ? '' : 's') + '</div>'
     + '<div class="trow h sortable">' + head('name', col) + head('g', 'GAMES', 'num')
     + head('wl', 'W–L', 'num') + head('wr', 'WR', 'num') + '<div></div></div>';
   if (!rows.length) h += '<div class="hint" style="padding:6px 0;">No data in this base.</div>';
+  h += '<div class="tbody">';
   rows.forEach(function (r) {
     var d = r.w + r.l, pct = d ? 100 * r.w / d : null;
     var label = r.id
@@ -981,6 +982,7 @@ function tableHtml(bucket, title, sub, col, allRows, span, limit) {
       + '<div class="bar-bg"><div style="width:' + (pct == null ? 0 : pct.toFixed(0)) + '%;background:'
       + (pct == null ? 'var(--line-strong)' : pct >= 50 ? 'var(--win)' : 'var(--loss)') + ';"></div></div></div>';
   });
+  h += '</div>';
   if (allRows.length > rows.length) {
     h += '<div class="hint" style="padding:6px 0 0;">showing ' + rows.length + ' of ' + allRows.length
       + ' — sort a column to bring others to the top</div>';
@@ -1032,12 +1034,13 @@ function reportHtml(uid, name) {
   }
 
   h += '<div class="tblgrid">'
+    /* these five are complete -- long ones scroll inside their own box */
     + tableHtml('my', 'Winrate by own division', 'What this player picks, and how it goes', 'DIVISION', r.rows('my'), 2)
     + tableHtml('vs', 'Winrate vs enemy division', 'Each enemy division counted once per match', 'AGAINST', r.rows('vs'), 2)
     + tableHtml('map', 'Winrate by map', 'All match types in base', 'MAP', r.rows('map'), 2)
     + tableHtml('with', 'Winrate with', 'Games sharing a team with this player', 'TEAMMATE', r.rows('with'), 2)
     + tableHtml('vsPlayer', 'Winrate against', 'Games on the opposing team', 'OPPONENT', r.rows('vsPlayer'), 2)
-    + tableHtml('units', 'Most-picked units', 'Decks containing the unit, at any veterancy', 'UNIT', r.rows('units'), 2, 20)
+    + tableHtml('units', 'Most-picked units', 'Decks containing the unit, at any veterancy', 'UNIT', r.rows('units'), 2, 25)
     + '</div></div>';
   return h;
 }

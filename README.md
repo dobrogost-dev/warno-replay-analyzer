@@ -104,10 +104,15 @@ Suwak ELO przeciwnika działa **wyłącznie na meczach rankingowych** — pozost
 typy przechodzą przez niego nietknięte, bo poza ladderem ELO przeciwnika nic nie
 znaczy. Chcesz zobaczyć same rankingowe? Odznacz „Casual multiplayer".
 
-**Zakładka gracza** (przycisk „Report" przy graczu lub w panelu filtrów) —
-statystyki liczone na aktualnie przefiltrowanej bazie: winrate, bilans, mediana
-czasu, wykres ELO w czasie, oraz winrate wg własnej dywizji, przeciw dywizji
-wroga, wg mapy, z sojusznikiem, przeciw graczowi i najczęściej brane jednostki.
+**Zakładka gracza** (przycisk „Full report" u góry filtrów, albo „Report" przy
+dowolnym graczu) — statystyki liczone na aktualnie przefiltrowanej bazie:
+winrate, bilans, mediana czasu, wykres ELO w czasie, oraz winrate wg własnej
+dywizji, przeciw dywizji wroga, wg mapy, z sojusznikiem i przeciw graczowi.
+
+Te pięć tabel jest **kompletnych** — nic nie jest ucinane, długie listy przewijają
+się w swoim polu, a podtytuł podaje liczbę wierszy. Każdą kolumnę można sortować
+(nazwa, GAMES, W–L, WR), niezależnie w każdej tabeli. Wyjątkiem jest lista
+najczęściej branych jednostek: tam pokazywane jest 25 pozycji z kilkuset.
 
 Perspektywa („kim jesteś") jest ustalana po koncie Steam zalogowanym na tym
 komputerze, a gdy się nie da — po tym, kto zapisał najwięcej replejów. Możesz ją
@@ -115,12 +120,8 @@ zmienić w panelu filtrów.
 
 ## Awatary Steam
 
-Domyślnie program **nie łączy się z siecią**. Jeśli chcesz obok nicków zobaczyć
-awatary graczy, uruchom go z `--avatars`:
-
-```
-"WARNO Replay Analyzer.exe" --avatars
-```
+Awatary graczy pobierane są **domyślnie** — to jedyny krok korzystający z sieci.
+Wyłącza je `--no-avatars`.
 
 Repleje zawierają SteamID64 każdego gracza (w polu `PlayerAvatar`), a publiczny
 XML profilu Steam zwraca adres miniatury bez żadnego klucza API. Na zewnątrz
@@ -130,7 +131,11 @@ więc płacisz za to raz: pierwsze pobranie 433 awatarów zajęło minutę, każ
 kolejne uruchomienie 2 sekundy. Nierozwiązane profile (usunięte, prywatne) są
 zapamiętywane, żeby nie próbować ich w kółko.
 
-Awatary powiększają raport o mniej więcej 600 KB.
+Bez internetu jedno szybkie sprawdzenie ucina próbę i program leci dalej — nie
+czeka na kilkaset timeoutów. Awatary powiększają raport o mniej więcej 600 KB.
+
+Uwaga przy wysyłaniu raportu komuś: razem z nickami i Eugen ID pójdą też zdjęcia
+profilowe wszystkich graczy. `--no-avatars` daje raport bez nich.
 
 ## Wiersz poleceń
 
@@ -140,7 +145,7 @@ WARNO Replay Analyzer.exe [FOLDER ...] [opcje]
   -o, --out KATALOG   gdzie zapisać raport (domyślnie obok .exe)
   --json              zapisz też data.json
   --no-open           nie otwieraj przeglądarki
-  --avatars           pobierz awatary Steam (jedyny krok korzystający z sieci)
+  --no-avatars        nie pobieraj awatarów Steam (jedyny krok używający sieci)
   --refresh-avatars   pobierz awatary ponownie, z pominięciem cache
   --game-dir ŚCIEŻKA  folder instalacji WARNO, jeśli nie został wykryty
   --refresh-data      wczytaj nazwy z gry ponownie, z pominięciem cache
@@ -220,3 +225,8 @@ reference/             materiał wyjściowy (prototyp w Pythonie + makieta UI)
 * `PlayerElo` równe 0 oznacza brak rankingu, nie wynik 0 — nie jest uśredniane.
 * Nazwa mapy potrafi kłamać o rozmiarze (2v2 bywa grane na mapie `_1vs1_`),
   więc rozmiar meczu liczony jest z faktycznego składu drużyn.
+* **Mapa z sufiksem `_DUEL` nie oznacza gry rankingowej** — customy chodzą na
+  tych samych mapach. Ladder rozpoznajemy po `GameType`: kolejki matchmakingowe
+  (1 i 2) praktycznie nie mają nazwy lobby (13 z 180 przypadków, wobec 426 z 610
+  dla `GameType=0`) i to po nich zmienia się ELO. Stara reguła oparta na mapie
+  oznaczała jako rankingowe 377 z 814 meczów; realnie jest ich 203.

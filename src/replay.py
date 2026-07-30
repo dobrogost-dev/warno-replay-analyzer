@@ -218,11 +218,18 @@ def parse(path, owner_ids=()):
         sides.setdefault(p['alliance'], []).append(p)
     per_side = sorted(len(v) for v in sides.values()) or [0]
 
+    # A duel map does not make a ladder game -- people run customs on them all
+    # the time. What separates the two is GameType: the matchmaking queues (1
+    # and 2) almost never carry a lobby name (13 of 180 here, against 426 of 610
+    # for GameType 0) and are the ones whose ELO actually moves afterwards.
     map_info = parse_map(game.get('Map', ''))
+    game_type = to_int(game.get('GameType'))
     if not network or any(p['ai'] for p in players) or to_int(game.get('NbIA'), 0) > 0:
         match_type = 'vs_ai'
-    elif len(sides) == 2 and per_side == [1, 1] and map_info['ranked']:
+    elif game_type in (1, 2):
         match_type = 'ranked'
+    elif game_type is None and len(sides) == 2 and per_side == [1, 1] and map_info['ranked']:
+        match_type = 'ranked'      # pre-GameType replays: fall back to the map
     else:
         match_type = 'casual'
 

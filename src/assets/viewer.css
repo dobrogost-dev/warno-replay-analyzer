@@ -206,6 +206,8 @@ button { cursor: pointer; }
 .tbl { padding:14px 16px; border-left:1px solid var(--line2); margin-left:-1px; min-width:0; }
 .tbl h5 { margin:0 0 2px; font-size:12px; font-weight:700; }
 .tbl .s { font-size:11px; color:var(--faint2); margin-bottom:10px; }
+/* complete tables: tall ones scroll in place instead of stretching the page */
+.tbody { max-height:560px; overflow-y:auto; overscroll-behavior:contain; }
 .trow { display:grid; grid-template-columns:minmax(110px,1fr) 44px 56px 46px minmax(56px,90px);
         gap:8px; align-items:center; font-size:12px; padding:5px 0; border-bottom:1px solid var(--line2); }
 .trow.h { font-size:10px; font-weight:600; letter-spacing:.06em; color:var(--faint2); padding-bottom:5px; }
